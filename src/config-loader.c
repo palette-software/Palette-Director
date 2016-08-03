@@ -3,9 +3,10 @@
 //
 
 #include <stdio.h>
+#include <mod_proxy.h>
 #include "mod_proxy.h"
 #include "config-loader.h"
-#include "palette-director-types.h"
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -91,6 +92,7 @@ bindings_setup read_site_config_from(const char* path) {
     // Close the file after use
     fclose(fp);
 
+
     // copy the loaded data to a freshly allocated memory block
     {
         size_t loaded_sites_size = sizeof(config_path) * loaded_site_count;
@@ -101,3 +103,99 @@ bindings_setup read_site_config_from(const char* path) {
     }
 }
 
+
+static int compare_bindings_row(const void *s1, const void *s2)
+{
+    binding_row *e1 = (binding_row *)s1;
+    binding_row *e2 = (binding_row *)s2;
+
+    // identity
+    if (e1->row_id == e2->row_id) return 0;
+
+    // if one is a fallback and the other is not the non-fallback
+    // always wins
+    if (!e1->is_fallback && e2->is_fallback) return -1;
+    if (e1->is_fallback && !e2->is_fallback) return 1;
+
+    return e1->priority - e2->priority;
+}
+
+/*
+ * Returns true if the worker matches the description of the binding_row b
+ */
+static int worker_matches_binding(const binding_row* b, const proxy_worker* w) {
+    return (strcmp(b->worker_host, w->s->hostname) == 0) ? TRUE : FALSE;
+}
+
+
+
+void find_matching_workers( const char* site_name, const binding_rows bindings_in, proxy_worker** workers, size_t worker_count ) {
+
+    if (site_name == NULL) {
+        // TODO: return all workers
+        return;
+    }
+
+    // a large enough stack buffer for any matching rows
+    binding_row buffer[256];
+    size_t buffer_size = 0;
+
+    // first find binding rows that are capable of handling the site
+    {
+        size_t i = 0, len = bindings_in.count;
+        for (; i < len; ++i) {
+            binding_row r = bindings_in.entries[i];
+
+            // check the site name. Fallbacks are alright for now,
+            // will prioritise later
+            if (r.is_fallback  ||  (strcmp(site_name, r.site_name)  == 0)) {
+                buffer[buffer_size] = r;
+                buffer_size++;
+            }
+        }
+    }
+
+    // prioritise the list by prefering dedicated over fallback and
+    // earlier ones over later ones
+    qsort(buffer, buffer_size, sizeof(buffer[0]), compare_bindings_row);
+
+    {
+        // the output buffer for the workers we (may) match
+        proxy_worker* worker_buffer[256];
+        size_t worker_buffer_size = 0;
+
+        // go throght the prioritised list
+        size_t i = 0;
+        for (i = 0; i < buffer_size; ++i) {
+            binding_row* b = &buffer[i];
+            size_t worker_idx = 0;
+
+            ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
+                    " ---- Route:  %s -> %s (pri: %d, #%lu, %d) \n", b->site_name, b->worker_host, b->priority, b->row_id, b->is_fallback);
+
+            // loop all workers to find any matching ones for the current
+            // binding.
+            for (; worker_idx < worker_count; ++worker_idx) {
+                proxy_worker* worker = workers[worker_idx];
+
+                // if the worker is ok, add it to the output list.
+                // If multiple workers are on the same host, this will
+                // add all of them (but keep the original ordering
+                // from the desired priority list)
+                if (worker_matches_binding(b, worker)) {
+                    worker_buffer[worker_buffer_size] = worker;
+                    worker_buffer_size++;
+
+                    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
+                                 "   Matched worker : %s -> %s (idx: %d) \n", worker->s->hostname, worker->s->name, worker->s->index);
+                }
+            }
+
+        }
+
+    }
+
+
+
+
+}

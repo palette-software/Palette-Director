@@ -17,4 +17,8 @@
 */
 bindings_setup read_site_config_from(const char* path);
 
+
+void find_matching_workers( const char* site_name, const binding_rows bindings_in, proxy_worker** workers, size_t worker_count );
+
+
 #endif //HTTPD_CONFIG_LOADER_H

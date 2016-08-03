@@ -92,7 +92,12 @@ static const char* get_site_name(const request_rec* r, const bindings_setup* set
 	const char* key = NULL;
 	const char* site_name = NULL;
 
-	
+
+    if (r->args == NULL ) {
+        return NULL;
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "NULL args passed: URI:'%s' -- args:'%s'", r->unparsed_uri, r->args);
+    }
+
 	size_t i;
 	const char* data = r->args;
 
@@ -128,6 +133,19 @@ static const char* get_site_name(const request_rec* r, const bindings_setup* set
 
 /////////////////////////////////////////////////////////////////////////////
 
+static binding_row example_b[5] = {
+        {0, "Marketing", "marketing.local", 0, 0},
+        {1, "QA", "qa.local", 0, 0},
+        {2, "*", "qa.local", 1, 1},
+        {3, "*", "fallback.local", 0, 1},
+
+};
+
+static const binding_rows example_rows = {
+        example_b, 4
+};
+
+
 // Load Balancer code
 // ==================
 
@@ -137,7 +155,6 @@ static int(*ap_proxy_retry_worker_fn)(const char *proxy_function,
 static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
 	request_rec *r)
 {
-
 	int i;
 	proxy_worker **worker;
 	proxy_worker *mycandidate = NULL;
@@ -169,7 +186,19 @@ static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
 	
 	// get the site name
 	site_name = get_site_name(r, &site_bindings_setup);
-	ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Got site name  '%s' for uri '%s' and args '%s'", site_name, r->unparsed_uri, r->args);
+    if (site_name == NULL) {
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Cannot find site name for uri: '%s'  -- with args '%s' ", r->unparsed_uri, r->args);
+
+    } else {
+
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Got site name  '%s' for uri '%s' and args '%s'", site_name, r->unparsed_uri, r->args);
+    }
+
+
+    find_matching_workers(site_name, example_rows,
+                          (proxy_worker **)balancer->workers->elts,
+                          (size_t)balancer->workers->nelts);
+
 
 	/* First try to see if we have available candidate */
 	do {
@@ -303,6 +332,7 @@ static void register_hook(apr_pool_t *p)
 	ap_register_provider(p, PROXY_LBMETHOD, "bybusyness", "0", &bybusyness);
 	// Register the status page hook
 	ap_hook_handler(status_page_http_handler, NULL, NULL, APR_HOOK_FIRST );
+
 }
 
 

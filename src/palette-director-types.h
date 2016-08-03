@@ -2,6 +2,13 @@
 #define HTTPD_PALETTE_DIRECTOR_TYPES_H
 
 #include <stddef.h>
+#include <stdint.h>
+
+#define PAL__SLICE_TYPE(type, entity_name) \
+    typedef struct entity_name { type* entries; size_t count; } entity_name; \
+    entity_name malloc_ ## entity_name ( size_t count ); \
+    void free_ ## entity_name ( entity_name* e );
+
 
 // Types shared by palette director
 
@@ -32,5 +39,38 @@ typedef struct bindings_setup {
 
 // The handler name we'll use to display the status pages
 static const char* PALETTE_DIRECTOR_STATUS_HANDLER = "palette-director-status";
+
+
+
+typedef struct binding_row {
+
+    // For identity checks
+    size_t row_id;
+
+    // We bind this site
+    const char* site_name;
+
+    // To this worker host
+    const char* worker_host;
+
+    // The base priority for the route.
+    int priority;
+
+    // True if this is a fallback route so we dont need to do
+    // site name matching (and these routes are always lower priority
+    // then the named routes)
+    int is_fallback;
+
+} binding_row;
+
+
+//// A slice
+//typedef struct binding_rows {
+//    binding_row* rows;
+//    size_t row_count;
+//};
+
+PAL__SLICE_TYPE(binding_row, binding_rows );
+
 
 #endif //HTTPD_PALETTE_DIRECTOR_TYPES_H
