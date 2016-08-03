@@ -462,21 +462,22 @@ static void status_page_html(request_rec* r, const bindings_setup* b, const int 
 	const size_t binding_count = b->binding_count;
 
 	ap_set_content_type(r, "text/html");
-
-	ap_rprintf(r, "<html>");
-
-	// head
-	ap_rprintf(r, "<head>");
-
-	// add style if needed
+	
+	// add style and html wrap if needed
 	if (add_style) {
+		
+		ap_rprintf(r, "<html>");
+	
+		// head
+		ap_rprintf(r, "<head>");
+
+
 		ap_rprintf(r, "<title>Palette Director Workerbinding Status</title>");
 		ap_rprintf(r, "<link rel='stylesheet' type='text/css' href='/vizportal.css' />");
+
+		// body
+		ap_rprintf(r, "</head><body>");
 	}
-
-	// body
-	ap_rprintf(r, "</head><body>");
-
 	// table
 	ap_rprintf(r, "<table class='tb-static-grid-table tb-static-grid-table-settings-min-width'>");
 
@@ -534,8 +535,12 @@ static void status_page_html(request_rec* r, const bindings_setup* b, const int 
 
 	ap_rprintf(r, "</tbody>");
 	ap_rprintf(r, "</table>");
-	ap_rprintf(r, "</body>");
-	ap_rprintf(r, "</html>");
+	
+	// close style and html wrap if needed
+	if (add_style) {
+		ap_rprintf(r, "</body>");
+		ap_rprintf(r, "</html>");
+	}
 }
 
 
