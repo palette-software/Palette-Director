@@ -590,7 +590,7 @@ static int status_page_http_handler(request_rec* r) {
 		// Start with HTML with optional style
 		if (uri_matches(r, "*html")) status_page_html(r, &site_bindings_setup, requires_style);
 		// JSON
-		else if (uri_matches(r, "*json")) status_page_json(r, &site_bindings_setup, requires_style);
+		else if (uri_matches(r, "*json")) status_page_json(r, &site_bindings_setup);
 		// The fallback is HTML without style for now
 		else status_page_html(r, &site_bindings_setup, TRUE);
 				

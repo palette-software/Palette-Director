@@ -1,4 +1,9 @@
-Place APR & APR-UTIL into libs
+# Building using CMAKE
+
+You'll need an installed apache (with the 'include' folder containing the Apache, APR, and APR-Util
+exported headers).
+
+Set
 
 
 # Configuring Vizql-Worker-Bindings (httpd.conf)
