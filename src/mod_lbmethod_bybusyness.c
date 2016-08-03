@@ -15,12 +15,11 @@
 */
 
 #include "mod_proxy.h"
-#include "scoreboard.h"
-#include "ap_mpm.h"
-#include "apr_version.h"
-#include "ap_hooks.h"
 
-#include "stdio.h"
+#include "palette-director-types.h"
+#include "status-pages.h"
+
+#include "config-loader.h"
 
 // FWD
 // ===
@@ -35,47 +34,9 @@ module AP_MODULE_DECLARE_DATA lbmethod_bybusyness_module;
 
 static const char* PALETTE_DIRECTOR_MODULE_NAME = "lbmethod_bybusyness_module";
 
-// The handler name we'll use to display the status pages
-static const char* PALETTE_DIRECTOR_STATUS_HANDLER = "palette-director-status";
-
-
-/*
-Config to define matching a http path to a worker route.
-*/
-typedef struct config_path {
-	/* We try to match this path on the request URI */
-	const char* site_name;
-
-	/* If the match suceeded, set the route to this */
-	const char* target_worker_host;
-} config_path;
-
-
-
-
-/*
-	A list of bindings with a count.
-*/
-typedef struct bindings_setup {
-	config_path* bindings;
-	const char* fallback_worker_host;
-	size_t binding_count;
-} bindings_setup;
-
-
 
 // The configuration
 static bindings_setup site_bindings_setup = { NULL, 0 };
-
-/*
-	The config to use when we have no config
-*/
-static const bindings_setup empty_bindings_setup = { NULL, 0 };
-
-/*
-	The HTTP path where the worker bindings status will be accessible.
-*/
-static const char* status_page_path = "/worker-bindings/status";
 
 
 
@@ -123,107 +84,17 @@ static int try_to_match_site_name_for_worker_host( const char* site_name, proxy_
 
 
 
-/////////////////////////////////////////////////////////////////////////////
-
-
-/*
-	Helper to read the configuration from a file.
-
-	Returns a bindings_setup struct. Only the successfully loaded binding configs
-	are added to the return config.
-
-	If no fallback host is declared, use the first declared host as fallback.
-*/
-static bindings_setup read_site_config_from(const char* path) {
-
-	FILE *fp;
-	int line_count = 1;
-	// Set the default fallback to null
-	const char* fallback_worker_host  = NULL;
-	// Create a fixed size buffer for loading the entries into
-	config_path buffer[512];
-	// The number of records filled in buffer
-	int loaded_site_count = 0;
-
-
-	// Try to open the config file
-	if ((fp = fopen(path, "r")) == NULL) {
-		ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf, "Cannot open worker bindings config file '%s'", path);
-		return empty_bindings_setup;
-	}
-
-	// Read all lines from the config file
-	while (1) {
-		// Buffers for storing line data
-		char siteName[256], hostName[256];
-		// and store it in the buffer
-		config_path p;
-
-		int ret = fscanf(fp, "%s -> %s", siteName, hostName);
-		if (ret == 2) {
-			ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf, "Loaded worker binding for site: '%s' bound to '%s'", siteName, hostName);
-			// store the site config
-
-			// check if its a fallback route
-			if (strcmp(siteName, "*") == 0) {
-				// store the fallback host path
-				fallback_worker_host = strdup(hostName);
-			}
-			// if not, add it to the routes
-			else {
-				// we have to make sure we have a fallback host
-				if (fallback_worker_host == NULL) {
-					fallback_worker_host = strdup(hostName);
-				}
-
-				// and store it in the buffer
-				p.site_name = strdup(siteName);
-				p.target_worker_host = strdup(hostName);
-
-				buffer[loaded_site_count] = p;
-				loaded_site_count++;
-			}
-
-			// incerement the loaded count
-		}
-		else if (errno != 0) {
-			ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf, "Scanf error: '%s' in line: %d of '%s'", strerror(errno), line_count, path);
-			break;
-		}
-		else if (ret == EOF) {
-			break;
-		}
-		else {
-			ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf, "No match found in line: %d of '%s'", line_count, path);
-		}
-		// next line
-		line_count++;
-	}
-	
-	// Close the file after use
-	fclose(fp);
-
-	// copy the loaded data to a freshly allocated memory block
-	{
-		size_t loaded_sites_size = sizeof(config_path) * loaded_site_count;
-		// create the output struct
-		bindings_setup o = { (config_path*)malloc(loaded_sites_size), fallback_worker_host, loaded_site_count };
-		memcpy(o.bindings, buffer, loaded_sites_size);
-		return o;
-	}
-}
-
 
 // Returns the site name for the request (if there is one), or NULL if no site available in the request
 static const char* get_site_name(const request_rec* r, const bindings_setup* setup) {
 
-	char* val = NULL;
-	char* key = NULL;
-	char* site_name = NULL;
+	const char* val = NULL;
+	const char* key = NULL;
+	const char* site_name = NULL;
 
 	
 	size_t i;
-	char* data = r->args;
+	const char* data = r->args;
 
 	while(*data && (val = ap_getword(r->pool, &data, '&'))) {
 		key = ap_getword(r->pool, &val, '=');
@@ -435,136 +306,6 @@ static void register_hook(apr_pool_t *p)
 }
 
 
-// STATUS PAGE HANDLER
-// ===================
-
-// Prints a single cell in a status table
-static void status_table_cell(request_rec* r, const int isChecked) {
-	// print the cell preamble
-	ap_rprintf(r, "<td class='tb-data-grid-separator-row ng-scope'><div class='tb-lr-padded-wide tb-worker-statuses-container'><span class='ng-scope ng-isolate-scope'><span class='tb-data-grid-icon'>");
-
-	// Add the active marker if there is a marker
-	if (isChecked) {
-		ap_rprintf(r, "<span title='Active' class='tb-icon-process-status tb-icon-process-status-active'></span>");
-	} 
-
-	// close the cell
-	ap_rprintf(r, "</span></span></div></td>");	
-}
-
-/*
-	Builds an HTML status page.
-
-	If add_style is not 0, then add the styling css and other style data.
-
-*/
-static void status_page_html(request_rec* r, const bindings_setup* b, const int add_style) {
-	const size_t binding_count = b->binding_count;
-
-	ap_set_content_type(r, "text/html");
-	
-	// add style and html wrap if needed
-	if (add_style) {
-		
-		ap_rprintf(r, "<html>");
-	
-		// head
-		ap_rprintf(r, "<head>");
-
-
-		ap_rprintf(r, "<title>Palette Director Workerbinding Status</title>");
-		ap_rprintf(r, "<link rel='stylesheet' type='text/css' href='/vizportal.css' />");
-
-		// body
-		ap_rprintf(r, "</head><body>");
-	}
-	// table
-	ap_rprintf(r, "<table class='tb-static-grid-table tb-static-grid-table-settings-min-width'>");
-
-	// HOSTS TABLE HEADER
-	// ------------------
-
-	ap_rprintf(r, "<thead>");
-	// list the sites as header
-	{
-		size_t i;
-		ap_rprintf(r, "<tr><th></th>");
-		for(i=0; i < binding_count; ++i) {
-			const config_path p = b->bindings[i];
-			ap_rprintf(r, "<th class='tb-data-grid-headers-line tb-data-grid-headers-line-multiline'><div class='tb-data-grid-header-text'>%s</div></th>", p.target_worker_host);
-		}
-
-		// add the fallback host
-		ap_rprintf(r, "<th class='tb-data-grid-headers-line tb-data-grid-headers-line-multiline'><div class='tb-data-grid-header-text'>%s</div></th>", b->fallback_worker_host);
-		ap_rprintf(r, "</tr>");
-	}
-	ap_rprintf(r, "</thead>");
-	ap_rprintf(r, "<tbody>");
-
-	
-	// HOSTS TABLE BODY
-	// ----------------
-	{
-		size_t row, col;
-		
-		// output normal hosts
-		for (row=0; row < binding_count; ++row) {
-			ap_rprintf(r, "<tr>");
-			ap_rprintf(r, "<td class='tb-data-grid-separator-row'><span class='tb-data-grid-cell-text tb-lr-padded-wide ng-scope'>%s</span></td>", b->bindings[row].site_name);
-
-			for (col=0; col < binding_count; ++col)	status_table_cell(r, row == col );
-
-			// put the fallback cell as false
-			status_table_cell(r, 0);
-			ap_rprintf(r, "</tr>");
-		}
-		
-
-		// output Fallback host
-		ap_rprintf(r, "<tr>");
-		ap_rprintf(r, "<td class='tb-data-grid-separator-row'><span class='tb-data-grid-cell-text tb-lr-padded-wide ng-scope'>Everything else</span></td>");
-
-
-		for (col=0; col < binding_count; ++col) {
-			status_table_cell(r, 0 );
-		}
-		status_table_cell(r, 1 );
-		ap_rprintf(r, "</tr>");
-
-	}
-
-	ap_rprintf(r, "</tbody>");
-	ap_rprintf(r, "</table>");
-	
-	// close style and html wrap if needed
-	if (add_style) {
-		ap_rprintf(r, "</body>");
-		ap_rprintf(r, "</html>");
-	}
-}
-
-
-
-
-
-
-/* Builds an JSON status page*/
-static void status_page_json(request_rec* r, const bindings_setup* b) {
-	ap_set_content_type(r, "application/json");
-	ap_rprintf(r, "{\"fallback\": \"%s\", \"sites\":{", b->fallback_worker_host);
-	{
-		size_t i;
-		for(i=0; i < b->binding_count; ++i) {
-			const config_path p = b->bindings[i];
-			// Add a comma before all but the first
-			if (i != 0)	{ ap_rprintf(r, ", "); }
-			// and print the pair
-			ap_rprintf(r, "\"%s\": \"%s\"", p.site_name, p.target_worker_host);
-		}
-	}
-	ap_rprintf(r, "}}");
-}
-
 
 
 // convinience function to match part of a url and map the result to TRUE/FALSE
@@ -608,7 +349,7 @@ static const char *workerbinding_set_config_path(cmd_parms *cmd, void *cfg, cons
 	// Check if we have a loaded config already.
 	if (site_bindings_setup.binding_count == 0) {
 		site_bindings_setup = read_site_config_from(arg);
-		ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf, "Loaded %d worker bindings from '%s'", site_bindings_setup.binding_count, arg);
+		ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf, "Loaded %lu worker bindings from '%s'", site_bindings_setup.binding_count, arg);
 	} else {
 		// if yes, log the fact that we tried to add to the config
 		ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf, "Duplicate worker bindings config files: config already loaded at the  WorkerBindingConfigPath '%s'  directive", arg);

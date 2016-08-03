@@ -8,15 +8,16 @@ INCLUDE_DIRECTORIES( ${APACHE_INCLUDE_DIR} )
 
 
 add_library(mod_palette_director MODULE
-        src/mod_lbmethod_bybusyness
-        )
+        src/mod_lbmethod_bybusyness.c
+        src/status-pages.c src/status-pages.h src/palette-director-types.h
+        src/config-loader.c src/config-loader.h)
 
 set_target_properties(mod_palette_director PROPERTIES PREFIX "")
 
 
 # Dont complain about missing symbols for our dynamically linked library
 IF(APPLE)
-    set_target_properties(mod_palette_director PROPERTIES LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined")
+    set_target_properties(mod_palette_director PROPERTIES LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 ENDIF(APPLE)
 
 
