@@ -199,6 +199,9 @@ static bindings_setup read_site_config_from(const char* path) {
 		// next line
 		line_count++;
 	}
+	
+	// Close the file after use
+	fclose(fp);
 
 	// copy the loaded data to a freshly allocated memory block
 	{
