@@ -10,6 +10,18 @@
     void free_ ## entity_name ( entity_name* e );
 
 
+
+enum {
+    // The size of the stack buffers we'll use in storing temporary bindings
+    kBINDINGS_BUFFER_SIZE = 512,
+
+    // The size of the stack buffer for the workers lists
+    kWORKERS_BUFFER_SIZE = 256,
+
+    // The buffer size for each substring we'll be reading from a line
+    kCONFIG_MAX_STRING_SIZE = 256,
+};
+
 // Types shared by palette director
 
 /*
