@@ -16,6 +16,32 @@ static const bindings_setup empty_bindings_setup = {NULL,
                                                     0};
 
 
+
+// Note: This function returns a pointer to a substring of the original string.
+// If the given string was allocated dynamically, the caller must not overwrite
+// that pointer with the returned value, since the original pointer must be
+// deallocated using the same allocator with which it was allocated.  The return
+// value must NOT be deallocated using free() etc.
+static char *trimwhitespace(char *str)
+{
+    char *end;
+
+    // Trim leading space
+    while(isspace(*str)) str++;
+
+    if(*str == 0)  // All spaces?
+        return str;
+
+    // Trim trailing space
+    end = str + strlen(str) - 1;
+    while(end > str && isspace(*end)) end--;
+
+    // Write new null terminator
+    *(end+1) = 0;
+
+    return str;
+}
+
 /*
 	Helper to read the configuration from a file.
 
@@ -44,33 +70,43 @@ bindings_setup read_site_config_from(const char *path) {
 
     // Read all lines from the config file
     while (1) {
+
+        // The buffer to read the lines into
+        char line_buffer[2048];
         // Buffers for storing line data
-        char siteName[kCONFIG_MAX_STRING_SIZE], hostName[kCONFIG_MAX_STRING_SIZE];
+        char siteName[kCONFIG_MAX_STRING_SIZE], hostName[kCONFIG_MAX_STRING_SIZE], role_name[kCONFIG_MAX_STRING_SIZE];
+        int priority;
         // and store it in the buffer
         config_path p;
 
-        int ret = fscanf(fp, "%s -> %[^\n]", siteName, hostName);
-        if (ret == 2) {
-            ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,
-                         "Loaded worker binding for site: '%s' bound to '%s'", siteName, hostName);
-            // store the site config
+        // Read a line (or at least try
+        if (fgets(line_buffer, sizeof(line_buffer), fp) == NULL) {
+            break;
+        }
+
+        int ret = sscanf(line_buffer, "%[^,],%[^,],%d,%[^\n]", siteName, hostName, &priority, role_name );
+        if (ret == 4) {
 
             // check if its a fallback route
             if (strcmp(siteName, "*") == 0) {
                 // store the fallback host path
-                fallback_worker_host = strdup(hostName);
+                fallback_worker_host = strdup(trimwhitespace(hostName));
             }
                 // if not, add it to the routes
             else {
                 // we have to make sure we have a fallback host
                 if (fallback_worker_host == NULL) {
-                    fallback_worker_host = strdup(hostName);
+                    fallback_worker_host = strdup(trimwhitespace(hostName));
                 }
 
                 // and store it in the buffer
-                p.site_name = strdup(siteName);
-                p.target_worker_host = strdup(hostName);
+                p.site_name = strdup(trimwhitespace(siteName));
+                p.target_worker_host = strdup(trimwhitespace(hostName));
 
+                ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,
+                             "Loaded worker binding for site: '%s' bound to '%s'", p.site_name, p.target_worker_host);
+
+                // store the site config
                 buffer[loaded_site_count] = p;
                 loaded_site_count++;
             }
@@ -194,6 +230,7 @@ size_t find_matching_workers(const char *site_name, const binding_rows bindings_
 
 
         // Now that we know how large the output should be, copy it there
+        // but check if we have the capacity
         if (worker_buffer_size >= output_capacity) {
 
             ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
