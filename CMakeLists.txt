@@ -21,8 +21,18 @@ IF(APPLE)
 ENDIF(APPLE)
 
 
+IF(MSVC)
+  SET(APACHE_LIB_DIR        "c:/tmp/apache32/lib"  CACHE STRING "The location of the apache lib directory")
+
+  #set_target_properties(mod_palette_director PROPERTIES LINK_FLAGS "/ignore")
+  target_link_libraries(mod_palette_director
+    ${APACHE_LIB_DIR}/libhttpd.lib
+    ${APACHE_LIB_DIR}/libaprutil-1.lib
+    ${APACHE_LIB_DIR}/libapr-1.lib)
+
+ENDIF(MSVC)
+
+
 SET_TARGET_PROPERTIES(mod_palette_director PROPERTIES
         SUFFIX .so
         )
-    
-    

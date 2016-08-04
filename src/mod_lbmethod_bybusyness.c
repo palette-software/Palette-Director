@@ -89,16 +89,15 @@ static const char *get_site_name(const request_rec *r, const bindings_setup *set
     const char *val = NULL;
     const char *key = NULL;
     const char *site_name = NULL;
-
+    size_t i;
+	const char *data = r->args;
 
     if (r->args == NULL) {
         return NULL;
-        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "NULL args passed: URI:'%s' -- args:'%s'", r->unparsed_uri,
-                     r->args);
     }
 
-    size_t i;
-    const char *data = r->args;
+
+    
 
     while (*data && (val = ap_getword(r->pool, &data, '&'))) {
         key = ap_getword(r->pool, &val, '=');

@@ -76,6 +76,7 @@ bindings_setup read_site_config_from(const char *path) {
         // Buffers for storing line data
         char siteName[kCONFIG_MAX_STRING_SIZE], hostName[kCONFIG_MAX_STRING_SIZE], role_name[kCONFIG_MAX_STRING_SIZE];
         int priority;
+		int ret;
         // and store it in the buffer
         config_path p;
 
@@ -84,7 +85,7 @@ bindings_setup read_site_config_from(const char *path) {
             break;
         }
 
-        int ret = sscanf(line_buffer, "%[^,],%[^,],%d,%[^\n]", siteName, hostName, &priority, role_name );
+        ret = sscanf(line_buffer, "%[^,],%[^,],%d,%[^\n]", siteName, hostName, &priority, role_name );
         if (ret == 4) {
 
             // check if its a fallback route
