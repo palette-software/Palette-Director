@@ -17,6 +17,7 @@
 */
 bindings_setup read_site_config_from(const char* path);
 
+binding_rows parse_csv_config(const char* path);
 
 size_t find_matching_workers( const char* site_name, const binding_rows bindings_in, proxy_worker** workers, size_t worker_count, proxy_worker** output, size_t output_capacity );
 

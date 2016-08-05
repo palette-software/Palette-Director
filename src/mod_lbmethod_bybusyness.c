@@ -139,7 +139,7 @@ static binding_row example_b[5] = {
 
 };
 
-static const binding_rows example_rows = {
+static binding_rows example_rows = {
         example_b, 4
 };
 
@@ -152,7 +152,7 @@ static int (*ap_proxy_retry_worker_fn)(const char *proxy_function,
 
 static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
                                           request_rec *r) {
-    int i;
+    size_t i;
     proxy_worker **worker;
     proxy_worker *mycandidate = NULL;
     int cur_lbset = 0;
@@ -390,6 +390,7 @@ static const char *workerbinding_set_config_path(cmd_parms *cmd, void *cfg, cons
     // Check if we have a loaded config already.
     if (site_bindings_setup.binding_count == 0) {
         site_bindings_setup = read_site_config_from(arg);
+		example_rows = parse_csv_config(arg);
         ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf, "Loaded %lu worker bindings from '%s'",
                      site_bindings_setup.binding_count, arg);
     } else {

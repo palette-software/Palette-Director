@@ -10,7 +10,11 @@ INCLUDE_DIRECTORIES( ${APACHE_INCLUDE_DIR} )
 add_library(mod_palette_director MODULE
         src/mod_lbmethod_bybusyness.c
         src/status-pages.c src/status-pages.h src/palette-director-types.h
-        src/config-loader.c src/config-loader.h)
+        src/config-loader.c src/config-loader.h
+
+        src/csv/csv.h
+        src/csv/libcsv.c
+        )
 
 set_target_properties(mod_palette_director PROPERTIES PREFIX "")
 
