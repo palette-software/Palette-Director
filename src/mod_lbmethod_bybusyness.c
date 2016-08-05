@@ -35,11 +35,6 @@ module AP_MODULE_DECLARE_DATA lbmethod_bybusyness_module;
 static const char *PALETTE_DIRECTOR_MODULE_NAME = "lbmethod_bybusyness_module";
 
 
-// The configuration
-static bindings_setup site_bindings_setup = {NULL, 0};
-
-
-
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -48,48 +43,12 @@ static bindings_setup site_bindings_setup = {NULL, 0};
 
 
 
-
-/*
-Returns 1 if the route config we passed matches the site.
-Returns 0 if the route does not match
-*/
-static int
-try_to_match_site_name_for_worker_host(const char *site_name, proxy_worker *worker, const bindings_setup setup) {
-
-    // convinience
-    const config_path *route_configs = setup.bindings;
-    const size_t configs_len = setup.binding_count;
-    const char *worker_hostname = worker->s->hostname;
-
-    size_t site_idx;
-    for (site_idx = 0; site_idx < configs_len; ++site_idx) {
-        /*int i;*/
-
-        // The config for the current site
-        const config_path *cfg = &route_configs[site_idx];
-
-        // If the host for the worker does not match, no need to check the paths
-        if (strcmp(worker_hostname, cfg->target_worker_host) != 0) {
-            continue;
-        }
-
-        // If the site name matches with the desired site name, we are ok
-        if (strcmp(cfg->site_name, site_name) == 0) {
-            return 1;
-        }
-
-    }
-    return 0;
-}
-
-
 // Returns the site name for the request (if there is one), or NULL if no site available in the request
-static const char *get_site_name(const request_rec *r, const bindings_setup *setup) {
+static const char *get_site_name(const request_rec *r, const binding_rows *setup) {
 
     const char *val = NULL;
     const char *key = NULL;
     const char *site_name = NULL;
-    size_t i;
 	const char *data = r->args;
 
     if (r->args == NULL) {
@@ -106,8 +65,7 @@ static const char *get_site_name(const request_rec *r, const bindings_setup *set
 
         // If the key is ':site', then we have a site
         if (strcmp(key, ":site") == 0) {
-            site_name = val;
-            break;
+            return val;
         }
 
     }
@@ -115,14 +73,14 @@ static const char *get_site_name(const request_rec *r, const bindings_setup *set
     // Check if we can actually match this site
 
 
-    if (site_name != NULL) {
-        for (i = 0; i < setup->binding_count; ++i) {
-            // if we have a handler, return the site name
-            if (strcmp(setup->bindings[i].site_name, site_name) == 0) {
-                return site_name;
-            }
-        }
-    }
+  //  if (site_name != NULL) {
+		//for (i = 0; i < setup->count; ++i) {
+  //          // if we have a handler, return the site name
+		//	if (strcmp(setup->entries[i].site_name, site_name) == 0) {
+  //              return site_name;
+  //          }
+  //      }
+  //  }
 
     // if no handler or even no name, return NULL
     return NULL;
@@ -131,17 +89,9 @@ static const char *get_site_name(const request_rec *r, const bindings_setup *set
 
 /////////////////////////////////////////////////////////////////////////////
 
-static binding_row example_b[5] = {
-        {0, "Marketing", "marketing.local", 0, 0},
-        {1, "QA",        "qa.local",        0, 0},
-        {2, "*",         "qa.local",        1, 1},
-        {3, "*",         "fallback.local",  0, 1},
 
-};
 
-static binding_rows example_rows = {
-        example_b, 4
-};
+static binding_rows workerbinding_configuration = {0, 0};
 
 
 // Load Balancer code
@@ -167,7 +117,7 @@ static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
     proxy_worker *workers_matched[kWORKERS_BUFFER_SIZE];
     size_t matched_worker_count = 0;
 
-    //int needs_fallback = 0;
+
 
     if (!ap_proxy_retry_worker_fn) {
         ap_proxy_retry_worker_fn =
@@ -182,23 +132,20 @@ static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
             "proxy: Entering bybusyness for BALANCER (%s)",
                  balancer->s->name);
 
-    // check if we need to use the fallback handler
-    //needs_fallback = needs_fallback_host(r->uri, &site_bindings_setup);
 
     // get the site name
-    site_name = get_site_name(r, &site_bindings_setup);
+    site_name = get_site_name(r, &workerbinding_configuration);
     if (site_name == NULL) {
         ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Cannot find site name for uri: '%s'  -- with args '%s' ",
                      r->unparsed_uri, r->args);
 
     } else {
-
         ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Got site name  '%s' for uri '%s' and args '%s'", site_name,
                      r->unparsed_uri, r->args);
     }
 
 
-    matched_worker_count = find_matching_workers(site_name, example_rows,
+    matched_worker_count = find_matching_workers(site_name, workerbinding_configuration,
             // These are the workers
                                                  (proxy_worker **) balancer->workers->elts,
                                                  (size_t) balancer->workers->nelts,
@@ -213,37 +160,7 @@ static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
         while (!mycandidate && !checked_standby) {
 
             worker = workers_matched;
-//            worker = (proxy_worker **) balancer->workers->elts;
-//            for (i = 0; i < balancer->workers->nelts; i++, worker++) {
             for (i = 0; i < matched_worker_count; i++, worker++) {
-
-                // PALETTE DIRECTOR ADDITIONS
-                // ==========================
-
-//                // Check if we have a site name in the request
-//                if (site_name == NULL) {
-//                    const char *worker_host = (*worker)->s->hostname;
-//                    // if we need the fallback, simply check if we have the correct host
-//                    if (strcmp(worker_host, site_bindings_setup.fallback_worker_host) != 0) {
-//                        continue;
-//                    }
-//                    // Log that we are using a fallback worker.
-//                    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, r->server,
-//                                 "Using fallback worker '%s' for uri '%s' and args '%s'", worker_host, r->unparsed_uri,
-//                                 r->args);
-//                }
-//                else {
-//                    // if we do not need to use a site-bound worker, check if the current one is the one we are
-//                    // looking for
-//                    if (try_to_match_site_name_for_worker_host(site_name, *worker, site_bindings_setup) != 1) {
-//                        continue;
-//                    }
-//                    // log that we have matched the worker
-//                    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, r->server,
-//                                 "Using site worker '%s' for uri '%s' and args '%s'", (*worker)->s->hostname,
-//                                 r->unparsed_uri, r->args);
-//                }
-
 
                 // ORIGINAL LB_BYBUSYNESS METHOD
                 // =============================
@@ -371,11 +288,11 @@ static int status_page_http_handler(request_rec *r) {
 
         // Check for content-types.
         // Start with HTML with optional style
-        if (uri_matches(r, "*html")) status_page_html(r, &site_bindings_setup, requires_style);
+		if (uri_matches(r, "*html")) status_page_html(r, &workerbinding_configuration, requires_style);
             // JSON
-        else if (uri_matches(r, "*json")) status_page_json(r, &site_bindings_setup);
+        else if (uri_matches(r, "*json")) status_page_json(r, &workerbinding_configuration);
             // The fallback is HTML without style for now
-        else status_page_html(r, &site_bindings_setup, TRUE);
+        else status_page_html(r, &workerbinding_configuration, TRUE);
 
         return OK;
     }
@@ -388,11 +305,11 @@ static int status_page_http_handler(request_rec *r) {
 /* Handler for the "WorkerBindingConfigPath" directive */
 static const char *workerbinding_set_config_path(cmd_parms *cmd, void *cfg, const char *arg) {
     // Check if we have a loaded config already.
-    if (site_bindings_setup.binding_count == 0) {
-        site_bindings_setup = read_site_config_from(arg);
-		example_rows = parse_csv_config(arg);
+	if (workerbinding_configuration.count == 0) {
+        //site_bindings_setup = read_site_config_from(arg);
+		workerbinding_configuration = parse_csv_config(arg);
         ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf, "Loaded %lu worker bindings from '%s'",
-                     site_bindings_setup.binding_count, arg);
+                     workerbinding_configuration.count, arg);
     } else {
         // if yes, log the fact that we tried to add to the config
         ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,

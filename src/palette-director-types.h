@@ -17,6 +17,8 @@
 	entity_name copy_array( type* arr, size_t count) { entity_name o = malloc_ ## entity_name ( count ); memcpy(o.entries, arr, sizeof(type) * count); return o; } \
 	const entity_name empty_ ## entity_name = { NULL, 0 };
 
+
+
 enum {
     // The size of the stack buffers we'll use in storing temporary bindings
     kBINDINGS_BUFFER_SIZE = 512,
@@ -28,36 +30,9 @@ enum {
     kCONFIG_MAX_STRING_SIZE = 256,
 };
 
-// Types shared by palette director
-
-/*
-Config to define matching a http path to a worker route.
-*/
-typedef struct config_path {
-    /* We try to match this path on the request URI */
-    const char* site_name;
-
-    /* If the match suceeded, set the route to this */
-    const char* target_worker_host;
-} config_path;
-
-
-
-
-/*
-	A list of bindings with a count.
-*/
-typedef struct bindings_setup {
-    config_path* bindings;
-    const char* fallback_worker_host;
-    size_t binding_count;
-} bindings_setup;
-
-
 
 // The handler name we'll use to display the status pages
 static const char* PALETTE_DIRECTOR_STATUS_HANDLER = "palette-director-status";
-
 
 
 typedef struct binding_row {
@@ -81,12 +56,6 @@ typedef struct binding_row {
 
 } binding_row;
 
-
-//// A slice
-//typedef struct binding_rows {
-//    binding_row* rows;
-//    size_t row_count;
-//};
 
 PAL__SLICE_TYPE(binding_row, binding_rows );
 
