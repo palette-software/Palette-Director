@@ -17,7 +17,9 @@
 */
 binding_rows parse_csv_config(const char* path);
 
-size_t find_matching_workers( const char* site_name, const binding_rows bindings_in, proxy_worker** workers, size_t worker_count, proxy_worker** output, size_t output_capacity );
+
+
+void find_matching_workers( const char* site_name, const binding_rows bindings_in, proxy_worker** workers, size_t worker_count, matched_workers_lists* output, size_t output_dedicated_capacity, size_t output_fallback_capacity );
 
 
 #endif //HTTPD_CONFIG_LOADER_H

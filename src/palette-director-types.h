@@ -8,13 +8,13 @@
     typedef struct entity_name { type* entries; size_t count; } entity_name; \
     entity_name malloc_ ## entity_name ( size_t count ); \
     void free_ ## entity_name ( entity_name* e ); \
-	entity_name copy_array( type* arr, size_t count); \
+	entity_name entity_name ## _from_array( type* arr, size_t count); \
 	extern const entity_name empty_ ## entity_name;
 
 #define PAL__SLICE_TYPE_IMPL(type, entity_name) \
 	entity_name malloc_ ## entity_name ( size_t count ) { entity_name o = { (type*)malloc(sizeof(type) * count), count }; return o; } \
 	void free_ ## entity_name ( entity_name* e  ) { free(e->entries); } \
-	entity_name copy_array( type* arr, size_t count) { entity_name o = malloc_ ## entity_name ( count ); memcpy(o.entries, arr, sizeof(type) * count); return o; } \
+	entity_name entity_name ## _from_array( type* arr, size_t count) { entity_name o = malloc_ ## entity_name ( count ); memcpy(o.entries, arr, sizeof(type) * count); return o; } \
 	const entity_name empty_ ## entity_name = { NULL, 0 };
 
 
@@ -56,8 +56,18 @@ typedef struct binding_row {
 
 } binding_row;
 
+typedef struct proxy_worker proxy_worker;
 
 PAL__SLICE_TYPE(binding_row, binding_rows );
+
+PAL__SLICE_TYPE(proxy_worker*, proxy_worker_slice);
+
+typedef struct matched_workers_lists {
+	proxy_worker_slice dedicated;
+	proxy_worker_slice fallback;
+} matched_workers_lists;
+
+
 
 
 #endif //HTTPD_PALETTE_DIRECTOR_TYPES_H

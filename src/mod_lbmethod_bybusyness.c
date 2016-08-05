@@ -73,15 +73,6 @@ static const char *get_site_name(const request_rec *r, const binding_rows *setup
     // Check if we can actually match this site
 
 
-  //  if (site_name != NULL) {
-		//for (i = 0; i < setup->count; ++i) {
-  //          // if we have a handler, return the site name
-		//	if (strcmp(setup->entries[i].site_name, site_name) == 0) {
-  //              return site_name;
-  //          }
-  //      }
-  //  }
-
     // if no handler or even no name, return NULL
     return NULL;
 }
@@ -100,9 +91,20 @@ static binding_rows workerbinding_configuration = {0, 0};
 static int (*ap_proxy_retry_worker_fn)(const char *proxy_function,
                                        proxy_worker *worker, server_rec *s) = NULL;
 
-static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
-                                          request_rec *r) {
-    size_t i;
+
+
+
+static proxy_worker *find_best_bybusyness_from_list(
+	proxy_balancer *balancer,
+    request_rec *r,
+
+	const char* site_name,
+										  
+	proxy_worker_slice workers_matched
+	//size_t matched_worker_count
+	)
+{
+	size_t i, workers_matched_count = workers_matched.count;
     proxy_worker **worker;
     proxy_worker *mycandidate = NULL;
     int cur_lbset = 0;
@@ -111,56 +113,15 @@ static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
     int checked_standby;
 
     int total_factor = 0;
-    const char *site_name = NULL;
 
-    // A stack buffer for the workers we'll be using
-    proxy_worker *workers_matched[kWORKERS_BUFFER_SIZE];
-    size_t matched_worker_count = 0;
-
-
-
-    if (!ap_proxy_retry_worker_fn) {
-        ap_proxy_retry_worker_fn =
-                APR_RETRIEVE_OPTIONAL_FN(ap_proxy_retry_worker);
-        if (!ap_proxy_retry_worker_fn) {
-            /* can only happen if mod_proxy isn't loaded */
-            return NULL;
-        }
-    }
-
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, APLOGNO(01211)
-            "proxy: Entering bybusyness for BALANCER (%s)",
-                 balancer->s->name);
-
-
-    // get the site name
-    site_name = get_site_name(r, &workerbinding_configuration);
-    if (site_name == NULL) {
-        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Cannot find site name for uri: '%s'  -- with args '%s' ",
-                     r->unparsed_uri, r->args);
-
-    } else {
-        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Got site name  '%s' for uri '%s' and args '%s'", site_name,
-                     r->unparsed_uri, r->args);
-    }
-
-
-    matched_worker_count = find_matching_workers(site_name, workerbinding_configuration,
-            // These are the workers
-                                                 (proxy_worker **) balancer->workers->elts,
-                                                 (size_t) balancer->workers->nelts,
-            // output to this buffer
-                                                 workers_matched, kWORKERS_BUFFER_SIZE);
-
-
-    /* First try to see if we have available candidate */
+	/* First try to see if we have available candidate */
     do {
 
         checking_standby = checked_standby = 0;
         while (!mycandidate && !checked_standby) {
 
-            worker = workers_matched;
-            for (i = 0; i < matched_worker_count; i++, worker++) {
+			worker = workers_matched.entries;
+            for (i = 0; i < workers_matched_count; i++, worker++) {
 
                 // ORIGINAL LB_BYBUSYNESS METHOD
                 // =============================
@@ -225,6 +186,83 @@ static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
 
     return mycandidate;
 
+}
+
+
+
+
+
+
+
+static proxy_worker *find_best_bybusyness(proxy_balancer *balancer,
+                                          request_rec *r) {
+    //size_t i;
+    //proxy_worker **worker;
+    //proxy_worker *mycandidate = NULL;
+    int cur_lbset = 0;
+    int max_lbset = 0;
+    //int checking_standby;
+    //int checked_standby;
+
+    int total_factor = 0;
+    const char *site_name = NULL;
+
+    // A stack buffer for the workers we'll be using
+    proxy_worker* workers_matched_dedicated[kWORKERS_BUFFER_SIZE];
+    proxy_worker* workers_matched_fallback[kWORKERS_BUFFER_SIZE];
+	// The matched workers list
+	matched_workers_lists matched_list = { {workers_matched_dedicated, 0}, { workers_matched_fallback, 0} };
+	// The output
+	proxy_worker* candidate = NULL;
+
+
+    if (!ap_proxy_retry_worker_fn) {
+        ap_proxy_retry_worker_fn =
+                APR_RETRIEVE_OPTIONAL_FN(ap_proxy_retry_worker);
+        if (!ap_proxy_retry_worker_fn) {
+            /* can only happen if mod_proxy isn't loaded */
+            return NULL;
+        }
+    }
+
+    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, APLOGNO(01211)
+            "proxy: Entering bybusyness for BALANCER (%s)",
+                 balancer->s->name);
+
+
+    // get the site name
+    site_name = get_site_name(r, &workerbinding_configuration);
+    if (site_name == NULL) {
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Cannot find site name for uri: '%s'  -- with args '%s' ",
+                     r->unparsed_uri, r->args);
+
+    } else {
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "Got site name  '%s' for uri '%s' and args '%s'", site_name,
+                     r->unparsed_uri, r->args);
+    }
+
+
+	
+    find_matching_workers(site_name, workerbinding_configuration,
+            // These are the workers
+                                                 (proxy_worker **) balancer->workers->elts,
+                                                 (size_t) balancer->workers->nelts,
+            // output to this buffer
+                                                 &matched_list, kWORKERS_BUFFER_SIZE, kWORKERS_BUFFER_SIZE);
+
+	
+    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, APLOGNO(01211)
+            "found %lu dedicated, %lu fallback workers to handle te request",
+			matched_list.dedicated.count, matched_list.fallback.count);
+
+	if (matched_list.dedicated.count > 0) {
+		// Check dedicated workers first
+		candidate = find_best_bybusyness_from_list(balancer, r, site_name, matched_list.dedicated);
+		if (candidate != NULL) return candidate;
+	}
+
+	// fallback workers
+	return find_best_bybusyness_from_list(balancer, r, site_name, matched_list.fallback);
 }
 
 /* assumed to be mutex protected by caller */

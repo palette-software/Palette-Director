@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 
 PAL__SLICE_TYPE_IMPL( binding_row, binding_rows );
+PAL__SLICE_TYPE_IMPL( proxy_worker*, proxy_worker_slice );
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -128,7 +129,7 @@ void on_csv_cell (void *s, size_t i, void *p) {
 	case kiDX_SITE_NAME:
 		// if the site name is a star, mark it as fallback
 		if (strncmp(tmp, "*", i) == 0) {
-			state->current_row.site_name = "*";
+			state->current_row.site_name = strdup("*");
 			state->current_row.is_fallback = TRUE;
 		} else {
 			// if note, dupe the site name 
@@ -211,7 +212,6 @@ binding_rows parse_csv_config(const char* path) {
         return empty_binding_rows;
 	}
 
-	
 
 	
 	// Parse the file as csv
@@ -276,12 +276,75 @@ static int worker_matches_binding(const binding_row *b, const proxy_worker *w) {
 }
 
 
-size_t find_matching_workers(const char *site_name, const binding_rows bindings_in, proxy_worker **workers,
-                             size_t worker_count, proxy_worker **output, size_t output_capacity) {
+static void build_worker_list(
+	// INPUT
+	proxy_worker** workers, size_t worker_count, 
+	binding_row* bindings, size_t bindings_count,
 
+	// OUTPUT
+	proxy_worker_slice* workers_out,
+	//proxy_worker** workers_out, size_t* workers_out_size,
+	size_t output_capacity
+	) 
+{
+	// the output buffer for the workers we (may) match
+	size_t workers_out_count = 0;
+	size_t i = 0;
+
+	// clip workers out count to capacity
+	size_t max_bindings_count = bindings_count;
+	if (max_bindings_count > output_capacity) {
+		max_bindings_count = output_capacity;
+
+		ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
+			"Not enough capacity to build worker list. Expecting %lu slots, got capacity for %lu slots.", bindings_count, output_capacity);
+	}
+
+	// go throght the prioritised list
+	
+	for (i = 0; i < max_bindings_count; ++i) {
+		binding_row *b = &bindings[i];
+		size_t worker_idx = 0;
+
+		ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
+			" ---- Route:  %s -> %s (pri: %d, #%lu, %d)", b->site_name, b->worker_host, b->priority,
+			b->row_id, b->is_fallback);
+
+		// loop all workers to find any matching ones for the current
+		// binding.
+		for (; worker_idx < worker_count; ++worker_idx) {
+			proxy_worker *worker = workers[worker_idx];
+
+			// if the worker is ok, add it to the output list.
+			// If multiple workers are on the same host, this will
+			// add all of them (but keep the original ordering
+			// from the desired priority list)
+			if (worker_matches_binding(b, worker)) {
+				workers_out->entries[workers_out_count] = worker;
+				workers_out_count++;
+
+				ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
+					"   Matched worker : %s -> %s (idx: %d)", worker->s->hostname, worker->s->name,
+					worker->s->index);
+			}
+		}
+	}
+
+	// update the size
+	workers_out->count = workers_out_count;
+}
+
+
+void find_matching_workers( const char* site_name, const binding_rows bindings_in,
+	proxy_worker** workers, size_t worker_count, 
+	matched_workers_lists* output, size_t output_dedicated_capacity, size_t output_fallback_capacity
+	){
     // a large enough stack buffer for any matching rows
-    binding_row buffer[kBINDINGS_BUFFER_SIZE];
-    size_t buffer_size = 0;
+    binding_row buffer_dedicated[kBINDINGS_BUFFER_SIZE];
+    size_t buffer_dedicated_size = 0;
+
+	binding_row buffer_fallback[kBINDINGS_BUFFER_SIZE];
+	size_t buffer_fallback_size = 0;
 
     // first find binding rows that are capable of handling the site
     {
@@ -289,74 +352,25 @@ size_t find_matching_workers(const char *site_name, const binding_rows bindings_
         for (; i < len; ++i) {
             binding_row r = bindings_in.entries[i];
 
-            // check the site name. Fallbacks are alright for now,
-            // will prioritise later
-            if (r.is_fallback || (site_name != NULL && (strcmp(site_name, r.site_name) == 0))) {
-                buffer[buffer_size] = r;
-                buffer_size++;
-            }
+			// Check if its a fallback worker
+			if (r.is_fallback) {
+				buffer_fallback[buffer_fallback_size] = r;
+				buffer_fallback_size++;
+				// check if its a dedicated worker
+			} else if (site_name != NULL && (strcmp(site_name, r.site_name) == 0)) {
+				buffer_dedicated[buffer_dedicated_size] = r;
+				buffer_dedicated_size++;
+			}
         }
     }
 
     // prioritise the list by prefering dedicated over fallback and
     // earlier ones over later ones
-    qsort(buffer, buffer_size, sizeof(buffer[0]), compare_bindings_row);
+	qsort(buffer_dedicated, buffer_dedicated_size, sizeof(buffer_dedicated[0]), compare_bindings_row);
+	qsort(buffer_fallback, buffer_fallback_size, sizeof(buffer_fallback[0]), compare_bindings_row);
 
-    {
-        // the output buffer for the workers we (may) match
-        proxy_worker *worker_buffer[kWORKERS_BUFFER_SIZE];
-        size_t worker_buffer_size = 0;
-
-        // go throght the prioritised list
-        size_t i = 0;
-        for (i = 0; i < buffer_size; ++i) {
-            binding_row *b = &buffer[i];
-            size_t worker_idx = 0;
-
-            ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
-                         " ---- Route:  %s -> %s (pri: %d, #%lu, %d)", b->site_name, b->worker_host, b->priority,
-                         b->row_id, b->is_fallback);
-
-            // loop all workers to find any matching ones for the current
-            // binding.
-            for (; worker_idx < worker_count; ++worker_idx) {
-                proxy_worker *worker = workers[worker_idx];
-
-                // if the worker is ok, add it to the output list.
-                // If multiple workers are on the same host, this will
-                // add all of them (but keep the original ordering
-                // from the desired priority list)
-                if (worker_matches_binding(b, worker)) {
-                    worker_buffer[worker_buffer_size] = worker;
-                    worker_buffer_size++;
-
-                    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
-                                 "   Matched worker : %s -> %s (idx: %d)", worker->s->hostname, worker->s->name,
-                                 worker->s->index);
-                }
-            }
-        }
-
-
-        // Now that we know how large the output should be, copy it there
-        // but check if we have the capacity
-        if (worker_buffer_size >= output_capacity) {
-
-            ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
-                         "Not enough space for complete matching worker list. Needed: %lu entries, only have room for %lu",
-                         worker_buffer_size, output_capacity);
-
-            // cap the workers count to the size of the output array
-            // TODO: handle this case somehow
-            worker_buffer_size = output_capacity;
-        }
-
-        // Copy the pointers to the workers we matched
-        memcpy(output, worker_buffer, sizeof(worker_buffer[0]) * worker_buffer_size);
-
-        // Return the number of workers copied
-        return worker_buffer_size;
-    }
+	build_worker_list(workers, worker_count, buffer_dedicated, buffer_dedicated_size, &output->dedicated, output_dedicated_capacity);
+	build_worker_list(workers, worker_count, buffer_fallback, buffer_fallback_size, &output->fallback, output_fallback_capacity);
 
 
 }
