@@ -38,14 +38,6 @@ static void status_table_cell(request_rec* r, const int prio) {
                  "25px;'><em>Prefer</em></small></span>");
       break;
   }
-  //// Add the active marker if there is a marker
-  // if (prio != kBINDING_FORBID) {
-  //  ap_rprintf(r,
-  //             "<span title='Active' class='tb-icon-process-status "
-  //             "tb-icon-process-status-active'><small style='margin-left: "
-  //             "25px;'><em>priority: </em><b>%d</b></small></span>",
-  //             prio);
-  //}
 
   // close the cell
   ap_rprintf(r, "</span></span></div></td>");
@@ -68,6 +60,33 @@ static void add_style_header(request_rec* r) {
 static void add_style_footer(request_rec* r) {
   ap_rprintf(r, "</body>");
   ap_rprintf(r, "</html>");
+}
+
+static void add_table_legend(request_rec* r, size_t hosts_count) {
+  // Print the legend
+  ap_rprintf(
+      r,
+      "<tr>"
+      "<th colspan='%d' style='font-size: 0.8em; text-align:right; "
+      "padding-top:20px; color: #aaa;' class='tb-settings-msg'>"
+      "<div class='tb-status-legend tb-padded-box'><span "
+      "class='tb-status-legend-item ng-scope'>"
+      "<span class='tb-icon-process-status "
+      "tb-icon-process-status-active'></span>"
+      "<span translate='workerStatus_active' "
+      "class='tb-status-legend-item-label'>Prefered</span></span><span "
+      "class='tb-status-legend-item ng-scope'>"
+      "<span class='tb-icon-process-status tb-icon-process-status-busy'></span>"
+      "<span translate='workerStatus_busy' "
+      "class='tb-status-legend-item-label'>Allowed for "
+      "fallback</span></span><span class='tb-status-legend-item ng-scope'>"
+      "<span class='tb-icon-process-status tb-icon-process-status-down'></span>"
+      "<span translate='workerStatus_down' "
+      "class='tb-status-legend-item-label'>Forbidden</span></span><span "
+      "class='tb-status-legend-item ng-scope'>"
+      "</th>"
+      "</tr>",
+      hosts_count + 1);
 }
 
 // Sorting helper that forwards to strcmp
@@ -157,7 +176,10 @@ void status_page_html(request_rec* r, const binding_rows* b,
     add_style_header(r);
   }
 
-  ap_rprintf(r, "<div><h3>Palette Director Worker Bindings</h3></div>");
+  ap_rprintf(r, "<div class='tb-settings-section'>");
+  ap_rprintf(r,
+             "<div class='tb-settings-group-name'>Palette Director Worker "
+             "Bindings</div>");
   // table
   ap_rprintf(r,
              "<table class='tb-static-grid-table "
@@ -208,8 +230,12 @@ void status_page_html(request_rec* r, const binding_rows* b,
     }
   }
 
+  // Print the legend
+  add_table_legend(r, host_buf_size);
+
   ap_rprintf(r, "</tbody>");
   ap_rprintf(r, "</table>");
+  ap_rprintf(r, "</div>");
 
   // close style and html wrap if needed
   if (add_style) {
@@ -219,6 +245,7 @@ void status_page_html(request_rec* r, const binding_rows* b,
 
 /* Builds an JSON status page*/
 void status_page_json(request_rec* r, const binding_rows* b) {
+  // TODO: implement me again
   return;
 
   // ap_set_content_type(r, "application/json");

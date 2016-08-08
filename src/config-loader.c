@@ -98,6 +98,9 @@ typedef struct config_loader_state {
   // The thing that keeps our current field
   int state;
 
+  // The line number so we can skip the first one
+  size_t line_count;
+
 } config_loader_state;
 
 static int put_comma = 0;
@@ -109,6 +112,11 @@ void on_csv_cell(void* s, size_t i, void* p) {
   int state_idx = state->state;
   // clone the string, beacause all steps require a null-terminated string
   char* tmp = (char*)strndup((char*)s, i);
+
+  // Skip the first line and dont even try to process it
+  if (state->line_count == 0) {
+    return;
+  }
 
   // check which field we are at and handle it
   switch (state_idx) {
@@ -151,10 +159,14 @@ void on_csv_cell(void* s, size_t i, void* p) {
 void on_csv_row_end(int c, void* p) {
   config_loader_state* state = (config_loader_state*)p;
 
-  // check if we need to add this row to the state
+  // Add the row to the state if its not the first one
+  if (state->line_count > 0) {
+    state->rows[state->row_count] = state->current_row;
+    state->row_count += 1;
+  }
 
-  state->rows[state->row_count] = state->current_row;
-  state->row_count += 1;
+  // increment the line count so we wont skip the line next time
+  state->line_count++;
 
   // reset the state
   state->state = kiDX_SITE_NAME;
