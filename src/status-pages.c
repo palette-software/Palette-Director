@@ -14,16 +14,38 @@ static void status_table_cell(request_rec* r, const int prio) {
              "<td class='tb-data-grid-separator-row ng-scope'><div "
              "class='tb-lr-padded-wide tb-worker-statuses-container'><span "
              "class='ng-scope ng-isolate-scope'><span "
-             "class='tb-data-grid-icon'>");
+             "class='tb-data-grid-icon tb-status-legend-item'>");
 
-  // Add the active marker if there is a marker
-  if (prio != kNO_MAPPING_AS_PRIORITY) {
-    ap_rprintf(r,
-               "<span title='Active' class='tb-icon-process-status "
-               "tb-icon-process-status-active'><small style='margin-left: "
-               "25px;'><em>priority: </em><b>%d</b></small></span>",
-               prio);
+  switch (prio) {
+    case kBINDING_ALLOW:
+      ap_rprintf(r,
+                 "<span title='Active' class='tb-icon-process-status "
+                 "tb-icon-process-status-busy'><small style='margin-left: "
+                 "25px;'><em>Fallback</em></small></span>");
+      break;
+
+    case kBINDING_FORBID:
+      ap_rprintf(r,
+                 "<span title='Active' class='tb-icon-process-status "
+                 "tb-icon-process-status-down'><small style='margin-left: "
+                 "25px;'><em>Forbidden</em></small></span>");
+      break;
+
+    case kBINDING_PREFER:
+      ap_rprintf(r,
+                 "<span title='Active' class='tb-icon-process-status "
+                 "tb-icon-process-status-active'><small style='margin-left: "
+                 "25px;'><em>Prefer</em></small></span>");
+      break;
   }
+  //// Add the active marker if there is a marker
+  // if (prio != kBINDING_FORBID) {
+  //  ap_rprintf(r,
+  //             "<span title='Active' class='tb-icon-process-status "
+  //             "tb-icon-process-status-active'><small style='margin-left: "
+  //             "25px;'><em>priority: </em><b>%d</b></small></span>",
+  //             prio);
+  //}
 
   // close the cell
   ap_rprintf(r, "</span></span></div></td>");
@@ -93,20 +115,20 @@ static void find_all_hosts(const binding_rows* b, key_extractor_fn extractor_fn,
     *output_count = output_idx;
   }
 }
-//
-//// Return 1 if there is a mapping for this site-host combo
-// static int mapping_priority_for(const binding_rows* b, const char* site_name,
-//                                const char* worker_host) {
-//  size_t i, len = b->count;
-//  for (i = 0; i < len; ++i) {
-//    const binding_row br = b->entries[i];
-//    if (strcmp(br.site_name, site_name) == 0 &&
-//        strcmp(br.worker_host, worker_host) == 0) {
-//      return br.priority;
-//    }
-//  }
-//  return kNO_MAPPING_AS_PRIORITY;
-//}
+
+// Return 1 if there is a mapping for this site-host combo
+static int mapping_priority_for(const binding_rows* b, const char* site_name,
+                                const char* worker_host) {
+  size_t i, len = b->count;
+  for (i = 0; i < len; ++i) {
+    const binding_row br = b->entries[i];
+    if (strcmp(br.site_name, site_name) == 0 &&
+        strcmp(br.worker_host, worker_host) == 0) {
+      return br.binding_kind;
+    }
+  }
+  return kBINDING_ALLOW;
+}
 
 /*
         Builds an HTML status page.
@@ -135,7 +157,7 @@ void status_page_html(request_rec* r, const binding_rows* b,
     add_style_header(r);
   }
 
-  ap_rprintf(r, "<div><h3>VizQL worker bindings</h3></div>");
+  ap_rprintf(r, "<div><h3>Palette Director Worker Bindings</h3></div>");
   // table
   ap_rprintf(r,
              "<table class='tb-static-grid-table "
@@ -177,10 +199,10 @@ void status_page_html(request_rec* r, const binding_rows* b,
                  "ng-scope'>%s</span></td>",
                  sites_buf[row]);
 
-      // for (col = 0; col < host_buf_size; ++col) {
-      //  status_table_cell(
-      //      r, mapping_priority_for(b, sites_buf[row], host_buf[col]));
-      //}
+      for (col = 0; col < host_buf_size; ++col) {
+        status_table_cell(
+            r, mapping_priority_for(b, sites_buf[row], host_buf[col]));
+      }
 
       ap_rprintf(r, "</tr>");
     }

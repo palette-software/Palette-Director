@@ -41,14 +41,11 @@ typedef struct binding_row {
 // The possible values for the 'binding' kind column in the config
 enum { kBINDING_FORBID = -1, kBINDING_ALLOW = 0, kBINDING_PREFER = 1 };
 
+// FWD-declare the proxy worker struct
 typedef struct proxy_worker proxy_worker;
 
+// The slice types we'll use more often
 PAL__SLICE_TYPE(binding_row, binding_rows);
 PAL__SLICE_TYPE(proxy_worker*, proxy_worker_slice);
-
-typedef struct matched_workers_lists {
-  proxy_worker_slice prefered;
-  proxy_worker_slice fallback;
-} matched_workers_lists;
 
 #endif  // HTTPD_PALETTE_DIRECTOR_TYPES_H

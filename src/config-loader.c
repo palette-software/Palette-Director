@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 #include "config-loader.h"
 #include "csv/csv.h"
-#include "mod_proxy.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
