@@ -258,26 +258,13 @@ static int worker_by_hostname_filter_fn(const proxy_worker** w, void* state) {
   return b == s->kind;
 }
 
-static proxy_worker_slice get_handlers(const binding_rows bindings_in,
-                                       const proxy_worker_slice workers_in,
-                                       const char* site_name,
-                                       const binding_kind_t with_kind) {
+proxy_worker_slice get_handling_worker_for(const binding_rows bindings_in,
+                                           const proxy_worker_slice workers_in,
+                                           const char* site_name,
+                                           const binding_kind_t with_kind) {
   worker_hostname_filter_state filter_state = {site_name, with_kind};
   // TODO: somehow fix this issue of const binding_rows -> binding_rows
   filter_state.bindings_in = bindings_in;
   return proxy_worker_slice_filter(workers_in, worker_by_hostname_filter_fn,
                                    kBINDINGS_BUFFER_SIZE, &filter_state);
-}
-
-matched_workers_lists find_matching_workers(
-    const char* site_name, const binding_rows bindings_in,
-    const proxy_worker_slice workers_in) {
-  // find the workers list
-  matched_workers_lists out;
-  out.prefered =
-      get_handlers(bindings_in, workers_in, site_name, kBINDING_PREFER);
-  out.fallback =
-      get_handlers(bindings_in, workers_in, site_name, kBINDING_ALLOW);
-
-  return out;
 }

@@ -20,14 +20,14 @@
 binding_rows parse_csv_config(const char* path);
 
 /*
-        Returns two lists of workers:
-        - one with prefered instances
-        - one with allowed (fallback) instances
+        Returns a list of workers where the bindings configuration has with_kind
+                set for kind.
 
         The slices in the return struct must be freed after use.
 */
-matched_workers_lists find_matching_workers(
-    const char* site_name, const binding_rows bindings_in,
-    const proxy_worker_slice workers_in);
+proxy_worker_slice get_handling_worker_for(const binding_rows bindings_in,
+                                           const proxy_worker_slice workers_in,
+                                           const char* site_name,
+                                           const binding_kind_t with_kind);
 
 #endif  // HTTPD_CONFIG_LOADER_H
