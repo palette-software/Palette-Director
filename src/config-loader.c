@@ -258,10 +258,10 @@ static int worker_by_hostname_filter_fn(const proxy_worker** w, void* state) {
   return b == s->kind;
 }
 
-proxy_worker_slice get_handling_worker_for(const binding_rows bindings_in,
-                                           const proxy_worker_slice workers_in,
-                                           const char* site_name,
-                                           const binding_kind_t with_kind) {
+proxy_worker_slice get_handling_workers_for(const binding_rows bindings_in,
+                                            const proxy_worker_slice workers_in,
+                                            const char* site_name,
+                                            const binding_kind_t with_kind) {
   worker_hostname_filter_state filter_state = {site_name, with_kind};
   // TODO: somehow fix this issue of const binding_rows -> binding_rows
   filter_state.bindings_in = bindings_in;

@@ -192,11 +192,11 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
 
   // filter the workers list down
   prefered_workers =
-      get_handling_worker_for(workerbinding_configuration, workers_available,
-                              site_name, kBINDING_PREFER);
+      get_handling_workers_for(workerbinding_configuration, workers_available,
+                               site_name, kBINDING_PREFER);
   allowed_workers =
-      get_handling_worker_for(workerbinding_configuration, workers_available,
-                              site_name, kBINDING_ALLOW);
+      get_handling_workers_for(workerbinding_configuration, workers_available,
+                               site_name, kBINDING_ALLOW);
 
   for (i = 0; i < prefered_workers.count; ++i) {
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,

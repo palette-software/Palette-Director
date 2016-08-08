@@ -25,9 +25,9 @@ binding_rows parse_csv_config(const char* path);
 
         The slices in the return struct must be freed after use.
 */
-proxy_worker_slice get_handling_worker_for(const binding_rows bindings_in,
-                                           const proxy_worker_slice workers_in,
-                                           const char* site_name,
-                                           const binding_kind_t with_kind);
+proxy_worker_slice get_handling_workers_for(const binding_rows bindings_in,
+                                            const proxy_worker_slice workers_in,
+                                            const char* site_name,
+                                            const binding_kind_t with_kind);
 
 #endif  // HTTPD_CONFIG_LOADER_H
