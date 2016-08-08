@@ -19,11 +19,15 @@
 */
 binding_rows parse_csv_config(const char* path);
 
-void find_matching_workers(const char* site_name,
-                           const binding_rows bindings_in,
-                           proxy_worker** workers, size_t worker_count,
-                           matched_workers_lists* output,
-                           size_t output_dedicated_capacity,
-                           size_t output_fallback_capacity);
+/*
+        Returns two lists of workers:
+        - one with prefered instances
+        - one with allowed (fallback) instances
+
+        The slices in the return struct must be freed after use.
+*/
+matched_workers_lists find_matching_workers(
+    const char* site_name, const binding_rows bindings_in,
+    const proxy_worker_slice workers_in);
 
 #endif  // HTTPD_CONFIG_LOADER_H

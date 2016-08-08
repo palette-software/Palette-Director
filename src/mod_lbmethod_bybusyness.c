@@ -1,19 +1,3 @@
-/* Licensed to the Apache Software Foundation (ASF) under one or more
-* contributor license agreements.  See the NOTICE file distributed with
-* this work for additional information regarding copyright ownership.
-* The ASF licenses this file to You under the Apache License, Version 2.0
-* (the "License"); you may not use this file except in compliance with
-* the License.  You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
-
 #include "mod_proxy.h"
 
 #include "palette-director-types.h"
@@ -160,23 +144,16 @@ static proxy_worker* find_best_bybusyness_from_list(
 
 static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
                                           request_rec* r) {
-  // size_t i;
-  // proxy_worker **worker;
-  // proxy_worker *mycandidate = NULL;
-  int cur_lbset = 0;
-  int max_lbset = 0;
-  // int checking_standby;
-  // int checked_standby;
-
-  int total_factor = 0;
   const char* site_name = NULL;
 
-  // A stack buffer for the workers we'll be using
-  proxy_worker* workers_matched_dedicated[kWORKERS_BUFFER_SIZE];
-  proxy_worker* workers_matched_fallback[kWORKERS_BUFFER_SIZE];
   // The matched workers list
-  matched_workers_lists matched_list = {{workers_matched_dedicated, 0},
-                                        {workers_matched_fallback, 0}};
+  matched_workers_lists matched_list;
+
+  // create a slice of workers
+  proxy_worker_slice workers_available = {
+      (proxy_worker**)balancer->workers->elts,
+      (size_t)balancer->workers->nelts};
+
   // The output
   proxy_worker* candidate = NULL;
 
@@ -205,28 +182,32 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
                  r->unparsed_uri, r->args);
   }
 
-  find_matching_workers(
-      site_name, workerbinding_configuration,
-      // These are the workers
-      (proxy_worker**)balancer->workers->elts, (size_t)balancer->workers->nelts,
-      // output to this buffer
-      &matched_list, kWORKERS_BUFFER_SIZE, kWORKERS_BUFFER_SIZE);
+  // find the workers list for prefered and fallback
+  matched_list = find_matching_workers(site_name, workerbinding_configuration,
+                                       workers_available);
 
   ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
                APLOGNO(01211) "found %lu dedicated, %lu fallback workers to "
                               "handle te request",
-               matched_list.dedicated.count, matched_list.fallback.count);
+               matched_list.prefered.count, matched_list.fallback.count);
 
-  if (matched_list.dedicated.count > 0) {
+  if (matched_list.prefered.count > 0) {
     // Check dedicated workers first
     candidate = find_best_bybusyness_from_list(balancer, r, site_name,
-                                               matched_list.dedicated);
-    if (candidate != NULL) return candidate;
+                                               matched_list.prefered);
   }
 
-  // fallback workers
-  return find_best_bybusyness_from_list(balancer, r, site_name,
-                                        matched_list.fallback);
+  // if no prefered candidates, go to the allowed ones
+  if (candidate == NULL && matched_list.fallback.count > 0) {
+    // fallback workers
+    candidate = find_best_bybusyness_from_list(balancer, r, site_name,
+                                               matched_list.fallback);
+  }
+
+  // Free the allocated data
+  free_proxy_worker_slice(&matched_list.prefered);
+  free_proxy_worker_slice(&matched_list.fallback);
+  return candidate;
 }
 
 /* assumed to be mutex protected by caller */

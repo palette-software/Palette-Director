@@ -11,7 +11,6 @@
 #include "csv/csv.h"
 #include "mod_proxy.h"
 
-
 /////////////////////////////////////////////////////////////////////////////
 
 // Note: This function returns a pointer to a substring of the original string.
@@ -83,8 +82,7 @@ const char* strndup(const char* str, size_t num_chars) {
 enum {
   kiDX_SITE_NAME = 0,
   kIDX_WORKER_HOST_NAME = 1,
-  kIDX_PRIORITY = 2,
-  kIDX_KIND = 3,
+  kIDX_BINDING_KIND = 2,
 
   kIDX_INDEX_COUNT
 };
@@ -101,8 +99,6 @@ typedef struct config_loader_state {
   // The thing that keeps our current field
   int state;
 
-  // Marks if the current row is for VizQL (all or vizql as kind)
-  int is_row_for_vizql;
 } config_loader_state;
 
 static int put_comma = 0;
@@ -118,29 +114,27 @@ void on_csv_cell(void* s, size_t i, void* p) {
   // check which field we are at and handle it
   switch (state_idx) {
     case kiDX_SITE_NAME:
-      // if the site name is a star, mark it as fallback
-      if (strncmp(tmp, "*", i) == 0) {
-        state->current_row.site_name = strdup("*");
-        state->current_row.is_fallback = TRUE;
-      } else {
-        // if note, dupe the site name
-        state->current_row.site_name = tmp;
-        state->current_row.is_fallback = FALSE;
-      }
+      // if note, dupe the site name
+      state->current_row.site_name = tmp;
       break;
 
     case kIDX_WORKER_HOST_NAME:
       state->current_row.worker_host = tmp;
       break;
 
-    case kIDX_PRIORITY:
-      state->current_row.priority = strtol(tmp, NULL, 10);
-      free(tmp);
-      break;
+    case kIDX_BINDING_KIND: {
+      // The kind of binding.
+      int binding_kind = kBINDING_ALLOW;
+      //  check the kind
+      if (strcmp("prefer", tmp) == 0) {
+        binding_kind = kBINDING_PREFER;
+      } else if (strcmp("forbid", tmp) == 0) {
+        binding_kind = kBINDING_FORBID;
+      }
+      // update the binding from the register
+      state->current_row.binding_kind = binding_kind;
+    }
 
-    case kIDX_KIND:
-      state->is_row_for_vizql = (strncmp((char*)s, "all", i) == 0) ||
-                                (strncmp((char*)s, "vizql", i) == 0);
       free(tmp);
       break;
 
@@ -159,14 +153,12 @@ void on_csv_row_end(int c, void* p) {
   config_loader_state* state = (config_loader_state*)p;
 
   // check if we need to add this row to the state
-  if (state->is_row_for_vizql) {
-    state->rows[state->row_count] = state->current_row;
-    state->row_count += 1;
-  }
+
+  state->rows[state->row_count] = state->current_row;
+  state->row_count += 1;
 
   // reset the state
   state->state = kiDX_SITE_NAME;
-  state->is_row_for_vizql = FALSE;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -233,130 +225,59 @@ binding_rows parse_csv_config(const char* path) {
   }
 }
 
-/////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
-static int compare_bindings_row(const void* s1, const void* s2) {
-  binding_row* e1 = (binding_row*)s1;
-  binding_row* e2 = (binding_row*)s2;
+static binding_kind_t binding_kind_for(const binding_rows bindings,
+                                       const char* site_name,
+                                       const char* worker_host) {
+  size_t i, len = bindings.count;
+  for (i = 0; i < len; ++i) {
+    binding_row b = bindings.entries[i];
 
-  // identity
-  if (e1->row_id == e2->row_id) return 0;
-
-  // if one is a fallback and the other is not the non-fallback
-  // always wins
-  if (!e1->is_fallback && e2->is_fallback) return -1;
-  if (e1->is_fallback && !e2->is_fallback) return 1;
-
-  return e1->priority - e2->priority;
-}
-
-/*
- * Returns true if the worker matches the description of the binding_row b
- */
-static int worker_matches_binding(const binding_row* b, const proxy_worker* w) {
-  return (strcmp(b->worker_host, w->s->hostname) == 0) ? TRUE : FALSE;
-}
-
-static void build_worker_list(
-    // INPUT
-    proxy_worker** workers, size_t worker_count, binding_row* bindings,
-    size_t bindings_count,
-
-    // OUTPUT
-    proxy_worker_slice* workers_out,
-    // proxy_worker** workers_out, size_t* workers_out_size,
-    size_t output_capacity) {
-  // the output buffer for the workers we (may) match
-  size_t workers_out_count = 0;
-  size_t i = 0;
-
-  // clip workers out count to capacity
-  size_t max_bindings_count = bindings_count;
-  if (max_bindings_count > output_capacity) {
-    max_bindings_count = output_capacity;
-
-    ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
-                 "Not enough capacity to build worker list. Expecting %lu "
-                 "slots, got capacity for %lu slots.",
-                 bindings_count, output_capacity);
-  }
-
-  // go throght the prioritised list
-
-  for (i = 0; i < max_bindings_count; ++i) {
-    binding_row* b = &bindings[i];
-    size_t worker_idx = 0;
-
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
-                 " ---- Route:  %s -> %s (pri: %d, #%lu, %d)", b->site_name,
-                 b->worker_host, b->priority, b->row_id, b->is_fallback);
-
-    // loop all workers to find any matching ones for the current
-    // binding.
-    for (; worker_idx < worker_count; ++worker_idx) {
-      proxy_worker* worker = workers[worker_idx];
-
-      // if the worker is ok, add it to the output list.
-      // If multiple workers are on the same host, this will
-      // add all of them (but keep the original ordering
-      // from the desired priority list)
-      if (worker_matches_binding(b, worker)) {
-        workers_out->entries[workers_out_count] = worker;
-        workers_out_count++;
-
-        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf,
-                     "   Matched worker : %s -> %s (idx: %d)",
-                     worker->s->hostname, worker->s->name, worker->s->index);
-      }
+    // if the site name and worker host match, return the kind
+    if (strcmp(b.site_name, site_name) == 0 &&
+        strcmp(b.worker_host, worker_host) == 0) {
+      return b.binding_kind;
     }
   }
-
-  // update the size
-  workers_out->count = workers_out_count;
+  // if no entries match, return an 'allow'
+  return kBINDING_ALLOW;
 }
 
-void find_matching_workers(const char* site_name,
-                           const binding_rows bindings_in,
-                           proxy_worker** workers, size_t worker_count,
-                           matched_workers_lists* output,
-                           size_t output_dedicated_capacity,
-                           size_t output_fallback_capacity) {
-  // a large enough stack buffer for any matching rows
-  binding_row buffer_dedicated[kBINDINGS_BUFFER_SIZE];
-  size_t buffer_dedicated_size = 0;
+typedef struct worker_hostname_filter_state {
+  const char* site_name;
+  binding_kind_t kind;
 
-  binding_row buffer_fallback[kBINDINGS_BUFFER_SIZE];
-  size_t buffer_fallback_size = 0;
+  binding_rows bindings_in;
+} worker_hostname_filter_state;
 
-  // first find binding rows that are capable of handling the site
-  {
-    size_t i = 0, len = bindings_in.count;
-    for (; i < len; ++i) {
-      binding_row r = bindings_in.entries[i];
+static int worker_by_hostname_filter_fn(const proxy_worker** w, void* state) {
+  worker_hostname_filter_state* s = (worker_hostname_filter_state*)state;
+  binding_kind_t b =
+      binding_kind_for(s->bindings_in, s->site_name, (*w)->s->hostname);
+  return b == s->kind;
+}
 
-      // Check if its a fallback worker
-      if (r.is_fallback) {
-        buffer_fallback[buffer_fallback_size] = r;
-        buffer_fallback_size++;
-        // check if its a dedicated worker
-      } else if (site_name != NULL && (strcmp(site_name, r.site_name) == 0)) {
-        buffer_dedicated[buffer_dedicated_size] = r;
-        buffer_dedicated_size++;
-      }
-    }
-  }
+static proxy_worker_slice get_handlers(const binding_rows bindings_in,
+                                       const proxy_worker_slice workers_in,
+                                       const char* site_name,
+                                       const binding_kind_t with_kind) {
+  worker_hostname_filter_state filter_state = {site_name, with_kind};
+  // TODO: somehow fix this issue of const binding_rows -> binding_rows
+  filter_state.bindings_in = bindings_in;
+  return proxy_worker_slice_filter(workers_in, worker_by_hostname_filter_fn,
+                                   kBINDINGS_BUFFER_SIZE, &filter_state);
+}
 
-  // prioritise the list by prefering dedicated over fallback and
-  // earlier ones over later ones
-  qsort(buffer_dedicated, buffer_dedicated_size, sizeof(buffer_dedicated[0]),
-        compare_bindings_row);
-  qsort(buffer_fallback, buffer_fallback_size, sizeof(buffer_fallback[0]),
-        compare_bindings_row);
+matched_workers_lists find_matching_workers(
+    const char* site_name, const binding_rows bindings_in,
+    const proxy_worker_slice workers_in) {
+  // find the workers list
+  matched_workers_lists out;
+  out.prefered =
+      get_handlers(bindings_in, workers_in, site_name, kBINDING_PREFER);
+  out.fallback =
+      get_handlers(bindings_in, workers_in, site_name, kBINDING_ALLOW);
 
-  build_worker_list(workers, worker_count, buffer_dedicated,
-                    buffer_dedicated_size, &output->dedicated,
-                    output_dedicated_capacity);
-  build_worker_list(workers, worker_count, buffer_fallback,
-                    buffer_fallback_size, &output->fallback,
-                    output_fallback_capacity);
+  return out;
 }

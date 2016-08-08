@@ -20,6 +20,9 @@ enum {
 // The handler name we'll use to display the status pages
 static const char* PALETTE_DIRECTOR_STATUS_HANDLER = "palette-director-status";
 
+// The binding kind 'enum' type
+typedef int binding_kind_t;
+
 typedef struct binding_row {
   // For identity checks
   size_t row_id;
@@ -30,15 +33,13 @@ typedef struct binding_row {
   // To this worker host
   const char* worker_host;
 
-  // The base priority for the route.
-  int priority;
-
-  // True if this is a fallback route so we dont need to do
-  // site name matching (and these routes are always lower priority
-  // then the named routes)
-  int is_fallback;
+  // Prefer, allow or forbid this host/site combo?
+  binding_kind_t binding_kind;
 
 } binding_row;
+
+// The possible values for the 'binding' kind column in the config
+enum { kBINDING_FORBID = -1, kBINDING_ALLOW = 0, kBINDING_PREFER = 1 };
 
 typedef struct proxy_worker proxy_worker;
 
@@ -46,7 +47,7 @@ PAL__SLICE_TYPE(binding_row, binding_rows);
 PAL__SLICE_TYPE(proxy_worker*, proxy_worker_slice);
 
 typedef struct matched_workers_lists {
-  proxy_worker_slice dedicated;
+  proxy_worker_slice prefered;
   proxy_worker_slice fallback;
 } matched_workers_lists;
 

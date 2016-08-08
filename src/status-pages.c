@@ -93,20 +93,20 @@ static void find_all_hosts(const binding_rows* b, key_extractor_fn extractor_fn,
     *output_count = output_idx;
   }
 }
-
-// Return 1 if there is a mapping for this site-host combo
-static int mapping_priority_for(const binding_rows* b, const char* site_name,
-                                const char* worker_host) {
-  size_t i, len = b->count;
-  for (i = 0; i < len; ++i) {
-    const binding_row br = b->entries[i];
-    if (strcmp(br.site_name, site_name) == 0 &&
-        strcmp(br.worker_host, worker_host) == 0) {
-      return br.priority;
-    }
-  }
-  return kNO_MAPPING_AS_PRIORITY;
-}
+//
+//// Return 1 if there is a mapping for this site-host combo
+// static int mapping_priority_for(const binding_rows* b, const char* site_name,
+//                                const char* worker_host) {
+//  size_t i, len = b->count;
+//  for (i = 0; i < len; ++i) {
+//    const binding_row br = b->entries[i];
+//    if (strcmp(br.site_name, site_name) == 0 &&
+//        strcmp(br.worker_host, worker_host) == 0) {
+//      return br.priority;
+//    }
+//  }
+//  return kNO_MAPPING_AS_PRIORITY;
+//}
 
 /*
         Builds an HTML status page.
@@ -177,10 +177,10 @@ void status_page_html(request_rec* r, const binding_rows* b,
                  "ng-scope'>%s</span></td>",
                  sites_buf[row]);
 
-      for (col = 0; col < host_buf_size; ++col) {
-        status_table_cell(
-            r, mapping_priority_for(b, sites_buf[row], host_buf[col]));
-      }
+      // for (col = 0; col < host_buf_size; ++col) {
+      //  status_table_cell(
+      //      r, mapping_priority_for(b, sites_buf[row], host_buf[col]));
+      //}
 
       ap_rprintf(r, "</tr>");
     }

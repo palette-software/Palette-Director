@@ -1,10 +1,8 @@
 #pragma once
 
+#include "palette-director-types.h"
 #include <stdlib.h>
 #include <string.h>
-#include "palette-director-types.h"
-
-
 
 // implement the functions for these slice types
 
