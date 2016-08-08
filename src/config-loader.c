@@ -11,8 +11,6 @@
 #include "csv/csv.h"
 #include "mod_proxy.h"
 
-PAL__SLICE_TYPE_IMPL(binding_row, binding_rows);
-PAL__SLICE_TYPE_IMPL(proxy_worker*, proxy_worker_slice);
 
 /////////////////////////////////////////////////////////////////////////////
 

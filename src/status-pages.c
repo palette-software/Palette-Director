@@ -158,12 +158,6 @@ void status_page_html(request_rec* r, const binding_rows* b,
                  "class='tb-data-grid-header-text'>%s</div></th>",
                  host_buf[i]);
     }
-
-    // add the fallback host
-    // ap_rprintf(r, "<th class='tb-data-grid-headers-line
-    // tb-data-grid-headers-line-multiline'><div
-    // class='tb-data-grid-header-text'>%s</div></th>",
-    // b->fallback_worker_host);
     ap_rprintf(r, "</tr>");
   }
   ap_rprintf(r, "</thead>");
