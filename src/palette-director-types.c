@@ -1,5 +1,3 @@
-#pragma once
-
 #include "palette-director-types.h"
 #include <stdlib.h>
 #include <string.h>
