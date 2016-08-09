@@ -1,5 +1,4 @@
-#ifndef HTTPD_PALETTE_DIRECTOR_TYPES_H
-#define HTTPD_PALETTE_DIRECTOR_TYPES_H
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
@@ -48,4 +47,3 @@ typedef struct proxy_worker proxy_worker;
 PAL__SLICE_TYPE(binding_row, binding_rows);
 PAL__SLICE_TYPE(proxy_worker*, proxy_worker_slice);
 
-#endif  // HTTPD_PALETTE_DIRECTOR_TYPES_H

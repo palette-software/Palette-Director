@@ -1,5 +1,4 @@
-#ifndef HTTPD_STATUS_PAGES_H
-#define HTTPD_STATUS_PAGES_H
+#pragma once
 
 #include "palette-director-types.h"
 
@@ -18,5 +17,3 @@ void status_page_html(request_rec* r, const binding_rows* b,
  * Builds a JSON status page
  */
 void status_page_json(request_rec* r, const binding_rows* b);
-
-#endif  // HTTPD_STATUS_PAGES_H

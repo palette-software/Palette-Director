@@ -1,6 +1,6 @@
 #include "status-pages.h"
 
-#include "mod_proxy.h"
+#include <mod_proxy.h>
 
 // STATUS PAGE HANDLER
 // ===================
@@ -115,7 +115,7 @@ static void find_all_hosts(const binding_rows* b, key_extractor_fn extractor_fn,
   }
 
   // sort the list of strings so we can unique them
-  qsort(buffer, b->count, sizeof(buffer[0]), string_qsort_compare);
+  qsort((char**)buffer, b->count, sizeof(buffer[0]), string_qsort_compare);
 
   {
     const char* current_str = NULL;

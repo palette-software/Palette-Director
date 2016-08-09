@@ -1,9 +1,8 @@
 //
 // Created by Miles Gibson on 03/08/16.
 //
+#pragma once
 
-#ifndef HTTPD_CONFIG_LOADER_H
-#define HTTPD_CONFIG_LOADER_H
 
 #include "palette-director-types.h"
 
@@ -30,4 +29,3 @@ proxy_worker_slice get_handling_workers_for(const binding_rows bindings_in,
                                             const char* site_name,
                                             const binding_kind_t with_kind);
 
-#endif  // HTTPD_CONFIG_LOADER_H
