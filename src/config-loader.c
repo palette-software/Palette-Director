@@ -242,6 +242,9 @@ static binding_kind_t binding_kind_for(const binding_rows bindings,
                                        const char* site_name,
                                        const char* worker_host) {
   size_t i, len = bindings.count;
+  // No site name? This site is allowed for this worker, thats for sure
+  if (site_name == NULL) return kBINDING_ALLOW;
+
   for (i = 0; i < len; ++i) {
     binding_row b = bindings.entries[i];
 

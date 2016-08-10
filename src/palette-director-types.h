@@ -46,4 +46,3 @@ typedef struct proxy_worker proxy_worker;
 // The slice types we'll use more often
 PAL__SLICE_TYPE(binding_row, binding_rows);
 PAL__SLICE_TYPE(proxy_worker*, proxy_worker_slice);
-

@@ -2,6 +2,8 @@ PROJECT(PALETTE_DIRECTOR C)
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 SET(APACHE_INCLUDE_DIR        "/opt/apache/include"  CACHE STRING "The location of the apache include directory")
 
 INCLUDE_DIRECTORIES( ${APACHE_INCLUDE_DIR} )
@@ -24,6 +26,14 @@ add_library(mod_palette_director MODULE
         )
 
 set_target_properties(mod_palette_director PROPERTIES PREFIX "")
+
+
+set(INSTALLER_COMPONENTS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/nsis")
+FILE(TO_NATIVE_PATH ${INSTALLER_COMPONENTS_PATH} INSTALLER_COMPONENTS_PATH )
+message("CURRENT: ${INSTALLER_COMPONENTS_PATH}")
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPackOptions.cmake.in CPackOptions.cmake @ONLY)
+set(CPACK_PROJECT_CONFIG_FILE "${CMAKE_BINARY_DIR}/CPackOptions.cmake")
 
 
 # Dont complain about missing symbols for our dynamically linked library

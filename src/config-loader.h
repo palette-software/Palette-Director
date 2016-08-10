@@ -3,7 +3,6 @@
 //
 #pragma once
 
-
 #include "palette-director-types.h"
 
 /*
@@ -28,4 +27,3 @@ proxy_worker_slice get_handling_workers_for(const binding_rows bindings_in,
                                             const proxy_worker_slice workers_in,
                                             const char* site_name,
                                             const binding_kind_t with_kind);
-
