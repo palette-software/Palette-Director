@@ -1,4 +1,4 @@
-PROJECT(HTTPD C)
+PROJECT(PALETTE_DIRECTOR C)
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
@@ -43,7 +43,45 @@ IF(MSVC)
 
 ENDIF(MSVC)
 
+# Install
+# =============================================================
+
 
 SET_TARGET_PROPERTIES(mod_palette_director PROPERTIES
         SUFFIX .so
         )
+
+
+install(TARGETS mod_palette_director
+   ARCHIVE
+   LIBRARY DESTINATION modules
+   COMPONENT libraries)
+
+ install(FILES
+  doc/installer/INSTALL.md
+  doc/installer/HOWTO.md
+  DESTINATION docs
+  )
+
+install(FILES
+  doc/config/httpd.mod-palette-director.conf
+  doc/config/workers.csv
+  DESTINATION config
+  )
+
+set(CPACK_GENERATOR NSIS)
+set(CPACK_PACKAGE_NAME "mod_palette_director")
+set(CPACK_PACKAGE_VENDOR "Palette Software")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Apache Module for Palette Director")
+set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_VERSION_MAJOR "1")
+set(CPACK_PACKAGE_VERSION_MINOR "0")
+set(CPACK_PACKAGE_VERSION_PATCH "0")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "Palette Director")
+
+SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/doc/installer/LICENSE.txt")
+SET(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/doc/installer/README.txt")
+SET(CPACK_RESOURCE_FILE_WELCOME "${CMAKE_CURRENT_SOURCE_DIR}/doc/installer/WELCOME.txt")
+#SET(CPACK_NSIS_MODIFY_PATH ON)
+
+INCLUDE(CPack)

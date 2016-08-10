@@ -1,0 +1,5 @@
+site,host,binding
+Marketing,10.0.0.189,prefer
+QA,10.0.0.27,forbid
+QA,10.0.0.188,forbid
+Marketing,10.0.0.188,prefer
