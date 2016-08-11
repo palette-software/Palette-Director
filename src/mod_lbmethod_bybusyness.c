@@ -1,4 +1,4 @@
-#include "mod_proxy.h"
+#include <mod_proxy.h>
 
 #include "palette-director-types.h"
 #include "status-pages.h"
@@ -62,13 +62,14 @@ static int (*ap_proxy_retry_worker_fn)(const char* proxy_function,
                                        proxy_worker* worker,
                                        server_rec* s) = NULL;
 
+
+/*
+ * Helper function that searches tries a list of workers and returns a candidate
+ * if there is one available.
+ */
 static proxy_worker* find_best_bybusyness_from_list(
-    proxy_balancer* balancer, request_rec* r,
-
-    const char* site_name,
-
+    request_rec* r,
     proxy_worker_slice workers_matched
-    // size_t matched_worker_count
     ) {
   size_t i, workers_matched_count = workers_matched.count;
   proxy_worker** worker;
@@ -143,15 +144,54 @@ static proxy_worker* find_best_bybusyness_from_list(
 }
 
 /*
-        Load balancer entry point.
-*/
+ * Helper that returns the first matching candidate worker from a list of worker lists.
+ */
+static proxy_worker* check_worker_sets(request_rec* r, proxy_worker_slice* worker_lists_by_prio, size_t worker_list_count) {
+  size_t i;
+  // check each entry in the list
+  for (i=0; i < worker_list_count; ++i) {
+    proxy_worker_slice worker_list = worker_lists_by_prio[i];
+    proxy_worker* candidate = NULL;
+    // check if the list has any actual workers
+    if (worker_list.count == 0) continue;
+    // check the list
+    candidate = find_best_bybusyness_from_list(r, worker_list );
+    if (candidate != NULL) return candidate;
+  }
+
+  // If we get this far, no workers have matched, so we have
+  // to accept our faith.
+  return NULL;
+}
+
+/*
+ * Helper to log the list of matched (allowed, prefered) workers
+ */
+static void log_workers_matched(request_rec* r, proxy_worker_slice* workers_by_prio, size_t worker_list_count ) {
+
+  size_t i;
+  for (i = 0; i < worker_list_count; ++i) {
+    // log each list
+    proxy_worker_slice workers = workers_by_prio[i];
+    size_t worker_idx, worker_count = workers.count;
+
+    ap_log_error(APLOG_MARK, APLOG_INFO, 0, r->server, "==> Priority round [%lu] has %lu handlers", i, worker_count );
+
+    for (worker_idx = 0; worker_idx < worker_count; ++worker_idx) {
+      proxy_worker* worker = workers.entries[worker_idx];
+      ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "  --> worker '%s' in priority round [%lu] entry #%lu", worker->s->hostname, i, worker_idx );
+    }
+  }
+}
+
+/*
+ * Main load balancer entry point.
+ */
 static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
                                           request_rec* r) {
   const char* site_name = NULL;
-  size_t i;
-
   // The matched workers list
-  proxy_worker_slice prefered_workers, allowed_workers;
+//  proxy_worker_slice prefered_workers, allowed_workers;
 
   // create a slice of workers
   proxy_worker_slice workers_available = {
@@ -160,6 +200,7 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
 
   // The output
   proxy_worker* candidate = NULL;
+  proxy_worker_slice workers_by_prio[2];
 
   // Check if we can actually handle this request
   if (!ap_proxy_retry_worker_fn) {
@@ -191,49 +232,19 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
   //////////////////////////////////////////////////////////////
 
   // filter the workers list down
-  prefered_workers =
+  workers_by_prio[0] =
       get_handling_workers_for(workerbinding_configuration, workers_available,
                                site_name, kBINDING_PREFER);
-  allowed_workers =
+  workers_by_prio[1] =
       get_handling_workers_for(workerbinding_configuration, workers_available,
                                site_name, kBINDING_ALLOW);
 
-  for (i = 0; i < prefered_workers.count; ++i) {
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
-                 "== Preferes worker'%s'",
-                 prefered_workers.entries[i]->s->hostname);
-  }
-
-  for (i = 0; i < allowed_workers.count; ++i) {
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "-- Allows worker'%s'",
-                 allowed_workers.entries[i]->s->hostname);
-  }
-
-  ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
-               APLOGNO(01211) "found %lu dedicated, %lu fallback workers to "
-                              "handle te request",
-               prefered_workers.count, prefered_workers.count);
-
-  // Look for actual candidates
-  //////////////////////////////////////////////////////////////
-
-  // Check the prefered candidates
-  if (prefered_workers.count > 0) {
-    // Check dedicated workers first
-    candidate = find_best_bybusyness_from_list(balancer, r, site_name,
-                                               prefered_workers);
-  }
-
-  // if no prefered candidates, go to the allowed ones
-  if (candidate == NULL && allowed_workers.count > 0) {
-    // fallback workers
-    candidate =
-        find_best_bybusyness_from_list(balancer, r, site_name, allowed_workers);
-  }
+  log_workers_matched(r, workers_by_prio, 2);
+  candidate = check_worker_sets(r, workers_by_prio, 2);
 
   // Free the allocated data
-  free_proxy_worker_slice(&prefered_workers);
-  free_proxy_worker_slice(&allowed_workers);
+  free_proxy_worker_slice(&workers_by_prio[0]);
+  free_proxy_worker_slice(&workers_by_prio[1]);
   return candidate;
 }
 

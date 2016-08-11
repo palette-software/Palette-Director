@@ -9,6 +9,9 @@
 
   !define APACHE_OPTS_DIALOG "NSIS.InstallOptions.Apache.ini"
 
+  !define TABLEAU_DATA_DIR_CHECK_FILE "config\httpd.conf"
+  !define TABLEAU_INSTALL_DIR_CHECK_FILE "bin\tabadmin.exe"
+
 ;--------------------------------
 ;Variables
 
@@ -658,7 +661,6 @@ FunctionEnd
 
 
 
-
 ; -------------------------------------------------------------
 
 ;--------------------------------
@@ -672,7 +674,7 @@ FunctionEnd
   !insertmacro MUI_RESERVEFILE_INSTALLOPTIONS
 
 
- 
+
 Function TableauDirSetupPage
   # If you need to skip the page depending on a condition, call Abort.
   ReserveFile "@INSTALLER_COMPONENTS_PATH@\${APACHE_OPTS_DIALOG}"
@@ -680,7 +682,7 @@ Function TableauDirSetupPage
   !insertmacro MUI_INSTALLOPTIONS_EXTRACT_AS "@INSTALLER_COMPONENTS_PATH@\${APACHE_OPTS_DIALOG}" "${APACHE_OPTS_DIALOG}"
   !insertmacro MUI_INSTALLOPTIONS_DISPLAY "${APACHE_OPTS_DIALOG}"
 FunctionEnd
- 
+
 Function TableauDirSetupLeave
   # Form validation here. Call Abort to go back to the page.
   # Use !insertmacro MUI_INSTALLOPTIONS_READ $Var "InstallOptionsFile.ini" ...
@@ -688,12 +690,31 @@ Function TableauDirSetupLeave
   !insertmacro MUI_INSTALLOPTIONS_READ $TABLEAU_DATA_DIR "${APACHE_OPTS_DIALOG}" "Field 3" "State"
   !insertmacro MUI_INSTALLOPTIONS_READ $TABLEAU_INSTALL_DIR "${APACHE_OPTS_DIALOG}" "Field 5" "State"
 
-  ; Log the results for now.
-  ; TODO: add actual install logic
-  MessageBox MB_OK $TABLEAU_DATA_DIR
+
+  ; Check if the data directory is correct
+  IfFileExists "$TABLEAU_DATA_DIR\${TABLEAU_DATA_DIR_CHECK_FILE}" TableauDataDirExists TableauDataDirDoesNotExist
+
+  ; If we have the data directory, check the binary directory
+  TableauDataDirExists:
+    MessageBox MB_OK "Tableau data dir ok"
+
+    ; Check if the data directory is correct
+    IfFileExists "$TABLEAU_INSTALL_DIR\${TABLEAU_INSTALL_DIR_CHECK_FILE}" TableauInstallDirExists TableauInstallDirDoesNotExist
+
+  ; Fallback case is later
+  TableauDataDirDoesNotExist:
+    MessageBox MB_OK "Tableau Data dir '$TABLEAU_DATA_DIR\${TABLEAU_DATA_DIR_CHECK_FILE}' is incorrect"
+    Abort
+
+  TableauInstallDirExists:
+    MessageBox MB_OK "Tableau Install dir OK"
+    return
+
+  TableauInstallDirDoesNotExist:
+    MessageBox MB_OK "Tableau Install dir incorrect"
+    Abort
 
 FunctionEnd
-;--------------------------------
 
 ; -------------------------------------------------------------
 
