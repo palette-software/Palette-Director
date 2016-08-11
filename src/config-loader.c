@@ -266,8 +266,8 @@ static binding_kind_t binding_kind_for(const binding_rows bindings,
     binding_row b = bindings.entries[i];
 
     // if the site name and worker host match, return the kind
-    if (strcmp(b.site_name, site_name) == 0 &&
-        strcmp(b.worker_host, worker_host) == 0) {
+    if (strcasecmp(b.site_name, site_name) == 0 &&
+        strcasecmp(b.worker_host, worker_host) == 0) {
       return b.binding_kind;
     }
   }

@@ -57,8 +57,8 @@ const char* ip_resolver_lookup(ip_resolver_table* r, const char* hostname) {
 
   // if we dont have it, look it up (the http service for now)
   {
-    int sockfd;
-    struct addrinfo hints, *servinfo, *p;
+    // int sockfd;
+    struct addrinfo hints, *servinfo;
     int rv;
 
     char ip_buffer[kIP_BUFFER_SIZE];
