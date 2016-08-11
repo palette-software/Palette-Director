@@ -43,6 +43,18 @@ enum { kBINDING_FORBID = -1, kBINDING_ALLOW = 0, kBINDING_PREFER = 1 };
 // FWD-declare the proxy worker struct
 typedef struct proxy_worker proxy_worker;
 
+typedef struct ip_resolver_table {
+  const char* hostname[kWORKERS_BUFFER_SIZE];
+  const char* ip_addr[kWORKERS_BUFFER_SIZE];
+
+  size_t count;
+} ip_resolver_table;
+
 // The slice types we'll use more often
 PAL__SLICE_TYPE(binding_row, binding_rows);
 PAL__SLICE_TYPE(proxy_worker*, proxy_worker_slice);
+
+// Returns the ip address stored (or tries to look it up).
+// If it cannot resolve the name to an ip, returns NULL and does
+// not retry it until restart
+const char* ip_resolver_lookup(ip_resolver_table* r, const char* hostname);

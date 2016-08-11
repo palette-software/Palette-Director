@@ -23,6 +23,9 @@ add_library(mod_palette_director MODULE
 
         src/csv/csv.h
         src/csv/libcsv.c
+
+        src/win/inet_ntop.h
+        src/win/inet_ntop.c
         )
 
 set_target_properties(mod_palette_director PROPERTIES PREFIX "")
@@ -49,7 +52,9 @@ IF(MSVC)
   target_link_libraries(mod_palette_director
     ${APACHE_LIB_DIR}/libhttpd.lib
     ${APACHE_LIB_DIR}/libaprutil-1.lib
-    ${APACHE_LIB_DIR}/libapr-1.lib)
+    ${APACHE_LIB_DIR}/libapr-1.lib
+          wsock32 ws2_32
+          )
 
 ENDIF(MSVC)
 

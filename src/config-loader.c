@@ -163,6 +163,10 @@ void on_csv_row_end(int c, void* p) {
   if (state->line_count > 0) {
     state->rows[state->row_count] = state->current_row;
     state->row_count += 1;
+
+    ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
+                 "Loaded binding: site:'%s' to: '%s'",
+                 state->current_row.site_name, state->current_row.worker_host);
   }
 
   // increment the line count so we wont skip the line next time
@@ -185,6 +189,8 @@ binding_rows parse_csv_config(const char* path) {
   // struct stat sb;
   char* file_buffer;
   size_t file_size = 0;
+
+  printf("cmp: ==== %d\n", strcmp("", ""));
 
   // Try to open the config file
   if ((fp = fopen(path, "rb")) == NULL) {
@@ -222,6 +228,17 @@ binding_rows parse_csv_config(const char* path) {
     csv_free(&parser);
     // clean up the buffer
     free(file_buffer);
+
+    // dont resolve for now
+    if (FALSE) {
+      size_t i = 0;
+      ip_resolver_table rt = {0, 0, 0};
+      for (i = 0; i < state.row_count; ++i) {
+        const char* hostname = state.rows[i].worker_host;
+        printf("============= %s -> %s\n", hostname,
+               ip_resolver_lookup(&rt, hostname));
+      }
+    }
 
     // build the output
     {
