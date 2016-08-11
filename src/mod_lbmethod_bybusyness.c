@@ -62,15 +62,12 @@ static int (*ap_proxy_retry_worker_fn)(const char* proxy_function,
                                        proxy_worker* worker,
                                        server_rec* s) = NULL;
 
-
 /*
  * Helper function that searches tries a list of workers and returns a candidate
  * if there is one available.
  */
 static proxy_worker* find_best_bybusyness_from_list(
-    request_rec* r,
-    proxy_worker_slice workers_matched
-    ) {
+    request_rec* r, proxy_worker_slice workers_matched) {
   size_t i, workers_matched_count = workers_matched.count;
   proxy_worker** worker;
   proxy_worker* mycandidate = NULL;
@@ -144,18 +141,21 @@ static proxy_worker* find_best_bybusyness_from_list(
 }
 
 /*
- * Helper that returns the first matching candidate worker from a list of worker lists.
+ * Helper that returns the first matching candidate worker from a list of worker
+ * lists.
  */
-static proxy_worker* check_worker_sets(request_rec* r, proxy_worker_slice* worker_lists_by_prio, size_t worker_list_count) {
+static proxy_worker* check_worker_sets(request_rec* r,
+                                       proxy_worker_slice* worker_lists_by_prio,
+                                       size_t worker_list_count) {
   size_t i;
   // check each entry in the list
-  for (i=0; i < worker_list_count; ++i) {
+  for (i = 0; i < worker_list_count; ++i) {
     proxy_worker_slice worker_list = worker_lists_by_prio[i];
     proxy_worker* candidate = NULL;
     // check if the list has any actual workers
     if (worker_list.count == 0) continue;
     // check the list
-    candidate = find_best_bybusyness_from_list(r, worker_list );
+    candidate = find_best_bybusyness_from_list(r, worker_list);
     if (candidate != NULL) return candidate;
   }
 
@@ -167,19 +167,23 @@ static proxy_worker* check_worker_sets(request_rec* r, proxy_worker_slice* worke
 /*
  * Helper to log the list of matched (allowed, prefered) workers
  */
-static void log_workers_matched(request_rec* r, proxy_worker_slice* workers_by_prio, size_t worker_list_count ) {
-
+static void log_workers_matched(request_rec* r,
+                                proxy_worker_slice* workers_by_prio,
+                                size_t worker_list_count) {
   size_t i;
   for (i = 0; i < worker_list_count; ++i) {
     // log each list
     proxy_worker_slice workers = workers_by_prio[i];
     size_t worker_idx, worker_count = workers.count;
 
-    ap_log_error(APLOG_MARK, APLOG_INFO, 0, r->server, "==> Priority round [%lu] has %lu handlers", i, worker_count );
+    ap_log_error(APLOG_MARK, APLOG_INFO, 0, r->server,
+                 "==> Priority round [%lu] has %lu handlers", i, worker_count);
 
     for (worker_idx = 0; worker_idx < worker_count; ++worker_idx) {
       proxy_worker* worker = workers.entries[worker_idx];
-      ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server, "  --> worker '%s' in priority round [%lu] entry #%lu", worker->s->hostname, i, worker_idx );
+      ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
+                   "  --> worker '%s' in priority round [%lu] entry #%lu",
+                   worker->s->hostname, i, worker_idx);
     }
   }
 }
@@ -191,7 +195,7 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
                                           request_rec* r) {
   const char* site_name = NULL;
   // The matched workers list
-//  proxy_worker_slice prefered_workers, allowed_workers;
+  //  proxy_worker_slice prefered_workers, allowed_workers;
 
   // create a slice of workers
   proxy_worker_slice workers_available = {
