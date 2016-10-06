@@ -12,6 +12,8 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
+enum { RESOLVE_HOSTNAMES = FALSE };
+
 // Note: This function returns a pointer to a substring of the original string.
 // If the given string was allocated dynamically, the caller must not overwrite
 // that pointer with the returned value, since the original pointer must be
@@ -230,7 +232,7 @@ binding_rows parse_csv_config(const char* path) {
     free(file_buffer);
 
     // dont resolve for now
-    if (FALSE) {
+    if (RESOLVE_HOSTNAMES) {
       size_t i = 0;
       ip_resolver_table rt = {0, 0, 0};
       for (i = 0; i < state.row_count; ++i) {

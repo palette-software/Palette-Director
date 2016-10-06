@@ -33,7 +33,7 @@ static const char* inet_ntop_strerror(int e) {
 // Adds an IP address to the resolver
 static void add_ip_to_resolver(ip_resolver_table* r, const char* hostname,
                                const char* ip) {
-  size_t len = r->count;
+  const size_t len = r->count;
   r->hostname[len] = hostname;
   r->ip_addr[len] = NULL;
   r->count = len + 1;

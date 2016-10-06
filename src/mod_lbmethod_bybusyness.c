@@ -54,6 +54,7 @@ static const char* get_site_name(const request_rec* r,
 /////////////////////////////////////////////////////////////////////////////
 
 static binding_rows workerbinding_configuration = {0, 0};
+static binding_rows authoringbinding_configuration = {0, 0};
 
 // Load Balancer code
 // ==================
@@ -205,6 +206,7 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
   // The output
   proxy_worker* candidate = NULL;
   proxy_worker_slice workers_by_prio[2];
+  binding_rows* selected_binding_configuration = NULL;
 
   // Check if we can actually handle this request
   if (!ap_proxy_retry_worker_fn) {
@@ -232,16 +234,27 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
                  r->unparsed_uri, r->args);
   }
 
+  // find out the kind of binding we care about
+  if (uri_matches(r, "*/showAuthoring")) {
+    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
+                 "Selected mode: AUTHORING for uri '%s'", r->uri);
+    selected_binding_configuration = &authoringbinding_configuration;
+  } else {
+    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
+                 "Selected mode: WORKER for uri '%s'", r->uri);
+    selected_binding_configuration = &workerbinding_configuration;
+  }
+
   // Filter the workers list down
   //////////////////////////////////////////////////////////////
 
   // filter the workers list down
   workers_by_prio[0] =
-      get_handling_workers_for(workerbinding_configuration, workers_available,
-                               site_name, kBINDING_PREFER);
+      get_handling_workers_for(*selected_binding_configuration,
+                               workers_available, site_name, kBINDING_PREFER);
   workers_by_prio[1] =
-      get_handling_workers_for(workerbinding_configuration, workers_available,
-                               site_name, kBINDING_ALLOW);
+      get_handling_workers_for(*selected_binding_configuration,
+                               workers_available, site_name, kBINDING_ALLOW);
 
   log_workers_matched(r, workers_by_prio, 2);
   candidate = check_worker_sets(r, workers_by_prio, 2);
@@ -341,10 +354,32 @@ static const char* workerbinding_set_config_path(cmd_parms* cmd, void* cfg,
   return NULL;
 }
 
+/* Handler for the "WorkerBindingConfigPath" directive */
+static const char* authoringbinding_set_config_path(cmd_parms* cmd, void* cfg,
+                                                    const char* arg) {
+  // Check if we have a loaded config already.
+  if (authoringbinding_configuration.count == 0) {
+    // site_bindings_setup = read_site_config_from(arg);
+    authoringbinding_configuration = parse_csv_config(arg);
+    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,
+                 "Loaded %lu authoring bindings from '%s'",
+                 authoringbinding_configuration.count, arg);
+  } else {
+    // if yes, log the fact that we tried to add to the config
+    ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
+                 "Duplicate authoring bindings config files: config already "
+                 "loaded at the  AuthoringBindingConfigPath '%s'  directive",
+                 arg);
+  }
+  return NULL;
+}
+
 // Apache config directives.
 static const command_rec workerbinding_directives[] = {
     AP_INIT_TAKE1("WorkerBindingConfigPath", workerbinding_set_config_path,
                   NULL, RSRC_CONF, "The path to the workerbinding config"),
+    AP_INIT_TAKE1("AuthoringBindingConfigPath", workerbinding_set_config_path,
+                  NULL, RSRC_CONF, "The path to the authoringbinding config"),
     {NULL}};
 
 // MODULE DECLARATION
