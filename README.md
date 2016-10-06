@@ -3,8 +3,6 @@
 You'll need an installed apache (with the 'include' folder containing the Apache, APR, and APR-Util
 exported headers).
 
-Set
-
 
 # Configuring Vizql-Worker-Bindings (httpd.conf)
 
@@ -14,13 +12,14 @@ Set
 After the module is loaded into apache:
 
 ```
-LoadModule lbmethod_bybusyness_module modules/mod_lbmethod_bybusyness_palette_director.so
+LoadModule lbmethod_bybusyness_module modules/mod_palette_director.so
 ```
 
 Add the location of the binding configuration file:
 
 ```
 WorkerBindingConfigPath "d:/config/workerbinding.conf"
+AuthoringBindingConfigPath "d:/config/authoringbinding.conf"
 ```
 
 ## Binding config file
@@ -92,7 +91,7 @@ To allow the module to serve status pages, add the
 location:
 
 ```
-<Location /worker-bindings>
+<Location /palette-director-status>
   SetHandler palette-director-status
 </Location>
 ```
