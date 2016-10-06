@@ -25,27 +25,63 @@ WorkerBindingConfigPath "d:/config/workerbinding.conf"
 
 ## Binding config file
 
-This file has the following format:
+The format of the configuration file is identical to the [Background Worker Binding Configuration](https://github.com/palette-software/palette-director/wiki/Worker-Binding-Configuration), except for one important detail:
+
+The host names must be the same as they are for the ProxyPass directives in the apache configuration file (`httpd.conf`). This means that if a host is declared by name (like TABLEAU-PRIMARY1 or tableau-primary.local) then the exact same name must be used in the configuration file. If `httpd.conf` has an IP for a worker, that IP must be used.
+
+So if your HTTPD conf has the following setup:
 
 ```
-Marketing -> marketing.local
-QA -> qa.local
-* -> fallback.local
+<Proxy balancer://A>
+	BalancerMember http://qa.local/QA route=QA loadfactor=25
+	BalancerMember http://marketing.local/Marketing route=Marketing loadfactor=25
+  BalancerMember http://ceo.local/ceo route=ceo loadfactor=25
+	BalancerMember http://fallback.local/fallback route=fallback loadfactor=25
+	ProxySet stickysession=ROUTEID
+</Proxy>
 ```
 
-This file has an entry per line in the following format:
+Then the configuration file may look like this:
 
-```SiteName -> WorkerHostName```
+```csv
+site,host,binding
+Marketing,marketing.local,prefer
+Marketing,ceo.local,forbid
+QA,qa.local,prefer
+QA,ceo.local,forbid
+QA,fallback.local,forbid
+CEO,ceo.local,prefer
+CEO,qa.local,forbid
+Default,fallback.local,prefer
+CEO,marketing.local,forbid
+```
 
-This line maps the site with the name `SiteName` to the worker(s)
-available on the host identified by `WorkerHostName`.
+And if your config has IPs:
 
-The fallback line:
+```
+<Proxy balancer://A>
+	BalancerMember http://192.168.0.2/QA route=QA loadfactor=25
+	BalancerMember http://192.168.0.3/Marketing route=Marketing loadfactor=25
+  BalancerMember http://192.168.0.4/ceo route=ceo loadfactor=25
+	BalancerMember http://192.168.0.1/fallback route=fallback loadfactor=25
+	ProxySet stickysession=ROUTEID
+</Proxy>
+```
 
-```* -> FallbackHostName```
+Then the configuration file may look like this:
 
-Directs traffic for any other site to the provided host.
-
+```csv
+site,host,binding
+Marketing,192.168.0.3,prefer
+Marketing,192.168.0.4,forbid
+QA,192.168.0.2,prefer
+QA,192.168.0.4,forbid
+QA,192.168.0.1,forbid
+CEO,192.168.0.4,prefer
+CEO,192.168.0.2,forbid
+Default,192.168.0.1,prefer
+CEO,192.168.0.3,forbid
+```
 
 
 
