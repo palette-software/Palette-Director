@@ -149,9 +149,8 @@ static int mapping_priority_for(const binding_rows* b, const char* site_name,
   return kBINDING_ALLOW;
 }
 
-
-static void status_page_html_table(const char* title, request_rec* r, const binding_rows* b,
-                      const int add_style);
+static void status_page_html_table(const char* title, request_rec* r,
+                                   const binding_rows* b, const int add_style);
 
 /*
         Builds an HTML status page.
@@ -159,24 +158,18 @@ static void status_page_html_table(const char* title, request_rec* r, const bind
         If add_style is not 0, then add the styling css and other style data.
 
 */
-void status_page_html(request_rec* r, const binding_rows* vizql_b, const binding_rows* authoring_b, const binding_rows* backgrounder_b,
-                      const int add_style) {
-
+void status_page_html(request_rec* r, const binding_rows* vizql_b,
+                      const binding_rows* authoring_b,
+                      const binding_rows* backgrounder_b, const int add_style) {
   ap_set_content_type(r, "text/html");
 
-  status_page_html_table( "Interactor bindings", r, vizql_b, add_style); 
-  status_page_html_table( "Authoring bindings", r, authoring_b, add_style);
-  status_page_html_table( "Backgrounder bindings", r, backgrounder_b, add_style);
-
- 
-
+  status_page_html_table("Interactor bindings", r, vizql_b, add_style);
+  status_page_html_table("Authoring bindings", r, authoring_b, add_style);
+  status_page_html_table("Backgrounder bindings", r, backgrounder_b, add_style);
 }
 
-
-
-
-static void status_page_html_table(const char* title, request_rec* r, const binding_rows* b,
-                      const int add_style) {
+static void status_page_html_table(const char* title, request_rec* r,
+                                   const binding_rows* b, const int add_style) {
   const char* host_buf[256];
   size_t host_buf_size = 0;
 
@@ -189,10 +182,8 @@ static void status_page_html_table(const char* title, request_rec* r, const bind
   find_all_hosts(b, extract_site_name_fn, sites_buf, &sites_buf_size);
   find_all_hosts(b, extract_host_fn, host_buf, &host_buf_size);
 
-
   ap_rprintf(r, "<div class='tb-settings-section'>");
-  ap_rprintf(r,
-             "<div class='tb-settings-group-name'>%s</div>", title);
+  ap_rprintf(r, "<div class='tb-settings-group-name'>%s</div>", title);
   // table
   ap_rprintf(r,
              "<table class='tb-static-grid-table "
@@ -255,11 +246,6 @@ static void status_page_html_table(const char* title, request_rec* r, const bind
     add_style_footer(r);
   }
 }
-
-
-
-
-
 
 /* Builds an JSON status page*/
 void status_page_json(request_rec* r, const binding_rows* b) {

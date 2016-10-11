@@ -320,13 +320,17 @@ static int status_page_http_handler(request_rec* r) {
     // Check for content-types.
     // Start with HTML with optional style
     if (uri_matches(r, "*html"))
-		status_page_html(r, &workerbinding_configuration, &authoringbinding_configuration, &backgrounderbinding_configuration, requires_style);
+      status_page_html(r, &workerbinding_configuration,
+                       &authoringbinding_configuration,
+                       &backgrounderbinding_configuration, requires_style);
     // JSON
     else if (uri_matches(r, "*json"))
       status_page_json(r, &workerbinding_configuration);
     // The fallback is HTML without style for now
     else
-		status_page_html(r, &workerbinding_configuration, &authoringbinding_configuration, &backgrounderbinding_configuration, TRUE);
+      status_page_html(r, &workerbinding_configuration,
+                       &authoringbinding_configuration,
+                       &backgrounderbinding_configuration, TRUE);
     return OK;
   }
 }
@@ -375,8 +379,9 @@ static const char* authoringbinding_set_config_path(cmd_parms* cmd, void* cfg,
 }
 
 /* Handler for the "WorkerBindingConfigPath" directive */
-static const char* backgrounderbinding_set_config_path(cmd_parms* cmd, void* cfg,
-                                                    const char* arg) {
+static const char* backgrounderbinding_set_config_path(cmd_parms* cmd,
+                                                       void* cfg,
+                                                       const char* arg) {
   // Check if we have a loaded config already.
   if (backgrounderbinding_configuration.count == 0) {
     // site_bindings_setup = read_site_config_from(arg);
@@ -398,10 +403,12 @@ static const char* backgrounderbinding_set_config_path(cmd_parms* cmd, void* cfg
 static const command_rec workerbinding_directives[] = {
     AP_INIT_TAKE1("WorkerBindingConfigPath", workerbinding_set_config_path,
                   NULL, RSRC_CONF, "The path to the workerbinding config"),
-    AP_INIT_TAKE1("AuthoringBindingConfigPath", authoringbinding_set_config_path,
-                  NULL, RSRC_CONF, "The path to the authoringbinding config"),
-    AP_INIT_TAKE1("BackgrounderBindingConfigPath", backgrounderbinding_set_config_path,
-                  NULL, RSRC_CONF, "The path to the background bindings config"),
+    AP_INIT_TAKE1("AuthoringBindingConfigPath",
+                  authoringbinding_set_config_path, NULL, RSRC_CONF,
+                  "The path to the authoringbinding config"),
+    AP_INIT_TAKE1("BackgrounderBindingConfigPath",
+                  backgrounderbinding_set_config_path, NULL, RSRC_CONF,
+                  "The path to the background bindings config"),
     {NULL}};
 
 // MODULE DECLARATION

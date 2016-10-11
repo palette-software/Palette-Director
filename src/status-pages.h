@@ -10,8 +10,9 @@ typedef struct request_rec request_rec;
         If add_style is not 0, then add the styling css and other style data.
 
 */
-void status_page_html(request_rec* r, const binding_rows* vizql_b, const binding_rows* authoring_b, const binding_rows* backgrounder_b,
-                      const int add_style);
+void status_page_html(request_rec* r, const binding_rows* vizql_b,
+                      const binding_rows* authoring_b,
+                      const binding_rows* backgrounder_b, const int add_style);
 
 /*
  * Builds a JSON status page
