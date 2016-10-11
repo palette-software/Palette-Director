@@ -64,6 +64,7 @@ static char* load_file_into_memory(FILE* f, size_t* out_size) {
 }
 
 // Duplicates a string by duping num_chars chars (and a 0) only
+#ifdef WINDOWS
 const char* strndup(const char* str, size_t num_chars) {
   // clip the length
   const size_t copied_chars = min(num_chars, strlen(str));
@@ -76,6 +77,7 @@ const char* strndup(const char* str, size_t num_chars) {
 
   return o;
 }
+#endif
 
 /////////////////////////////////////////////////////////////////
 

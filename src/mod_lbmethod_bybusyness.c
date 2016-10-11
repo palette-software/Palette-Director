@@ -21,6 +21,11 @@ static const char* PALETTE_DIRECTOR_MODULE_NAME = "lbmethod_bybusyness_module";
 // Worker matching
 // ===============
 
+// convinience function to match part of a url and map the result to TRUE/FALSE
+static int uri_matches(const request_rec* r, const char* pattern) {
+  return (ap_strcmp_match(r->uri, pattern) == 0) ? TRUE : FALSE;
+}
+
 // Returns the site name for the request (if there is one), or NULL if no site
 // available in the request
 static const char* get_site_name(const request_rec* r,
@@ -294,11 +299,6 @@ static void register_hook(apr_pool_t* p) {
   ap_register_provider(p, PROXY_LBMETHOD, "bybusyness", "0", &bybusyness);
   // Register the status page hook
   ap_hook_handler(status_page_http_handler, NULL, NULL, APR_HOOK_FIRST);
-}
-
-// convinience function to match part of a url and map the result to TRUE/FALSE
-static int uri_matches(const request_rec* r, const char* pattern) {
-  return (ap_strcmp_match(r->uri, pattern) == 0) ? TRUE : FALSE;
 }
 
 /*

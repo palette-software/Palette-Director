@@ -4,10 +4,14 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-SET(APACHE_INCLUDE_DIR        "/opt/apache/include"  CACHE STRING "The location of the apache include directory")
+SET(APACHE_INC	      "/usr/local/apache2/include" CACHE STRING "The location of the apache include directory")
+SET(APACHE_LOCATION "/usr/local/apache2")
 
-INCLUDE_DIRECTORIES( ${APACHE_INCLUDE_DIR} )
-
+find_package(APACHE REQUIRED)
+find_package(APR REQUIRED)
+include_directories(${APACHE_INCLUDE_DIR})
+include_directories(${APACHE_INC})
+include_directories(${APR_INCLUDE_DIR})
 
 add_library(mod_palette_director MODULE
         src/palette-macros.h

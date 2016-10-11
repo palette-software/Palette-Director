@@ -1,3 +1,4 @@
+#ifdef WINDOWS
 #include "inet_ntop.h"
 
 // From: https://memset.wordpress.com/2010/10/09/inet_ntop-for-win32/
@@ -22,3 +23,4 @@ inet_ntop(
     }
     return pStringBuf;
 }
+#endif
