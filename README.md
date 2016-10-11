@@ -20,7 +20,12 @@ Add the location of the binding configuration file:
 ```
 WorkerBindingConfigPath "d:/config/workerbinding.conf"
 AuthoringBindingConfigPath "d:/config/authoringbinding.conf"
+BackgrounderBindingConfigPath "d:/config/backgrounder-binding.conf"
 ```
+
+Note: the location of the background is given only for displaying it
+on the status UI, otherwise this configuration isnt used by the apache
+module.
 
 ## Binding config file
 
