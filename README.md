@@ -116,3 +116,20 @@ Different formatted versions are available:
 * `http://localhost/worker-bindings/json` is the JSON version if further
   processing of the status is needed.
 
+
+### Inserting the status page into the tableau Cluster Status page:
+
+
+A quick (and very dirty) hack to insert the Status Page into the is by editing the
+`vizPortalLibMin.js` javascript file and adding the following snippet
+to the end:
+
+```
+$.get('/palette-director-status/html', null, function(result){
+    $('.tb-scroll.tb-scroll-settings .tb-settings-section:nth-child(1)').after(result);
+});
+```
+
+This tries to insert the worker binding statuses after the current
+cluster status table.
+
