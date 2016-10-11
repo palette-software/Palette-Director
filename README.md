@@ -103,7 +103,7 @@ location:
 
 After a restart, the status page will be available under:
 
-```http://localhost/worker-bindings```
+`http://localhost/worker-bindings`
 
 Different formatted versions are available:
 
@@ -132,4 +132,5 @@ $.get('/palette-director-status/html', null, function(result){
 
 This tries to insert the worker binding statuses after the current
 cluster status table.
+
 
