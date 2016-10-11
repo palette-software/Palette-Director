@@ -4,14 +4,11 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-SET(APACHE_INC	      "/usr/local/apache2/include" CACHE STRING "The location of the apache include directory")
-SET(APACHE_LOCATION "/usr/local/apache2")
-
 find_package(APACHE REQUIRED)
-find_package(APR REQUIRED)
+# find_package(APR REQUIRED)
 include_directories(${APACHE_INCLUDE_DIR})
-include_directories(${APACHE_INC})
-include_directories(${APR_INCLUDE_DIR})
+
+SET(APACHE_LIB_DIR "${APACHE_INCLUDE_DIR}/../lib")       
 
 add_library(mod_palette_director MODULE
         src/palette-macros.h
@@ -50,9 +47,8 @@ ENDIF(APPLE)
 
 
 IF(MSVC)
-  SET(APACHE_LIB_DIR        "c:/tmp/apache32/lib"  CACHE STRING "The location of the apache lib directory")
+  message("APACHE_LIB_DIR: ${APACHE_LIB_DIR}")
 
-  #set_target_properties(mod_palette_director PROPERTIES LINK_FLAGS "/ignore")
   target_link_libraries(mod_palette_director
     ${APACHE_LIB_DIR}/libhttpd.lib
     ${APACHE_LIB_DIR}/libaprutil-1.lib

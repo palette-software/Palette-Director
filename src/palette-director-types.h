@@ -5,7 +5,7 @@
 
 #include "palette-macros.h"
 
-#ifndef WINDOWS
+#ifndef WIN32
 typedef struct addrinfo {
   int             ai_flags;
   int             ai_family;

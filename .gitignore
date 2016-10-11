@@ -4,3 +4,16 @@ CPack*
 Makefile
 cmake_install.cmake
 *.so
+
+*vcxproj*
+*sln*
+.vs
+*sdf
+*.dir
+Debug/
+Win32/
+RelWithDebInfo/
+
+*.swp
+
+

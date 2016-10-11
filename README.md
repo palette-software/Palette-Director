@@ -1,3 +1,8 @@
+# What you need to get started
+
+  * Download and Install cmake
+  * Download Apache and add to PATH
+
 # Building using CMAKE
 
 You'll need an installed apache (with the 'include' folder containing the Apache, APR, and APR-Util
