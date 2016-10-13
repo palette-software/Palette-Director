@@ -5,8 +5,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 find_package(APACHE REQUIRED)
-# find_package(APR REQUIRED)
+find_package(APR REQUIRED)
 include_directories(${APACHE_INCLUDE_DIR})
+include_directories(${APR_INCLUDE_DIR})
 
 SET(APACHE_LIB_DIR "${APACHE_INCLUDE_DIR}/../lib")       
 
