@@ -1,6 +1,6 @@
 # Install instructions for customizing Palette Director
 
-### Steap 1
+### Step 1
 
 Modify tableau's apache configuration to include the `config/httpd.mod-palette-director.conf` file:
 
