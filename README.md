@@ -96,7 +96,7 @@ To allow the module to serve status pages, add the
 location:
 
 ```
-<Location /palette-director-status>
+<Location /worker-bindings>
   SetHandler palette-director-status
 </Location>
 ```
