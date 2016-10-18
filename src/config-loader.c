@@ -238,7 +238,8 @@ binding_rows parse_csv_config(const char* path) {
 
 // Returns the binding kind for a sitename / host pair from the list
 // of bindings provided
-// TODO: speed this up by storing and comparing a hash (but careful with upper/lower case)
+// TODO: speed this up by storing and comparing a hash (but careful with
+// upper/lower case)
 static binding_kind_t binding_kind_for(const binding_rows bindings,
                                        const char* site_name,
                                        const char* worker_host) {

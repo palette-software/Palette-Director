@@ -38,7 +38,6 @@ typedef struct binding_row {
 
 } binding_row;
 
-
 // FWD-declare the proxy worker struct
 typedef struct proxy_worker proxy_worker;
 

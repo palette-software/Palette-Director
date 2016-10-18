@@ -15,7 +15,8 @@ static int status_page_http_handler(request_rec* r);
 module AP_MODULE_DECLARE_DATA lbmethod_bybusyness_module;
 
 // Since we want to be a drop-in replacement for the existing load balancer
-// used in tableau (lbmethod_bybusyness), we have to use the exact same momdule name
+// used in tableau (lbmethod_bybusyness), we have to use the exact same momdule
+// name
 static const char* PALETTE_DIRECTOR_MODULE_NAME = "lbmethod_bybusyness_module";
 
 /////////////////////////////////////////////////////////////////////////////
@@ -226,9 +227,10 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
     }
   }
 
-  ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
-               APLOGNO(01211) "proxy: Entering Palette Director for BALANCER (%s)",
-               balancer->s->name);
+  ap_log_error(
+      APLOG_MARK, APLOG_DEBUG, 0, r->server,
+      APLOGNO(01211) "proxy: Entering Palette Director for BALANCER (%s)",
+      balancer->s->name);
 
   // get the site name
   site_name = get_site_name(r, &workerbinding_configuration);
@@ -345,24 +347,26 @@ static int status_page_http_handler(request_rec* r) {
 // APACHE CONFIG FILE
 // ==================
 
-
 // Set up the config readers / parsers
 // TODO: use a macro+shared function instead of pure macro
 
-#define BINDING_CONFIG_LOADER(key, name) \
-static const char* key##binding_set_config_path(cmd_parms* cmd, void* cfg, const char* arg)  \
-{ \
-  if (key##binding_configuration.count == 0) { \
-    key##binding_configuration = parse_csv_config(arg); \
-    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf, \
-                 "Loaded %lu " name " from '%s'", \
-                 key##binding_configuration.count, arg); \
-  } else { \
-    ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf, \
-                 "Bindings config already loaded for " name " from file '%s'.", \
-                 arg); \
-  } \
-  return NULL; \
+#define BINDING_CONFIG_LOADER(key, name)                                       \
+  \
+static const char* key##binding_set_config_path(cmd_parms* cmd, void* cfg,     \
+                                                const char* arg) \
+{          \
+    if (key##binding_configuration.count == 0) {                               \
+      key##binding_configuration = parse_csv_config(arg);                      \
+      ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,                \
+                   "Loaded %lu " name " from '%s'",                            \
+                   key##binding_configuration.count, arg);                     \
+    } else {                                                                   \
+      ap_log_error(                                                            \
+          APLOG_MARK, APLOG_ERR, 0, ap_server_conf,                            \
+          "Bindings config already loaded for " name " from file '%s'.", arg); \
+    }                                                                          \
+    return NULL;                                                               \
+  \
 }
 
 BINDING_CONFIG_LOADER(worker, "worker bindings")
@@ -371,20 +375,21 @@ BINDING_CONFIG_LOADER(backgrounder, "backgrounder bindings")
 
 #undef BINDING_CONFIG_LOADER
 
-
 // Declare the config file directives
 
-#define BINDING_CONFIG_DIRECTIVE(key, directive_name, description) \
-    AP_INIT_TAKE1(directive_name, key##binding_set_config_path, \
-        NULL, RSRC_CONF, description)
-
+#define BINDING_CONFIG_DIRECTIVE(key, directive_name, description)             \
+  AP_INIT_TAKE1(directive_name, key##binding_set_config_path, NULL, RSRC_CONF, \
+                description)
 
 // Apache config directives.
 static const command_rec workerbinding_directives[] = {
-        BINDING_CONFIG_DIRECTIVE(worker, "WorkerBindingConfigPath", "The path to the workerbinding config"),
-        BINDING_CONFIG_DIRECTIVE(authoring, "AuthoringBindingConfigPath", "The path to the authoring binding config"),
-        BINDING_CONFIG_DIRECTIVE(backgrounder, "BackgrounderBindingConfigPath", "The path to the backgrounder config"),
-        {NULL}};
+    BINDING_CONFIG_DIRECTIVE(worker, "WorkerBindingConfigPath",
+                             "The path to the workerbinding config"),
+    BINDING_CONFIG_DIRECTIVE(authoring, "AuthoringBindingConfigPath",
+                             "The path to the authoring binding config"),
+    BINDING_CONFIG_DIRECTIVE(backgrounder, "BackgrounderBindingConfigPath",
+                             "The path to the backgrounder config"),
+    {NULL}};
 
 #undef BINDING_CONFIG_DIRECTIVE
 
