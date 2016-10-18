@@ -354,7 +354,7 @@ static const char* workerbinding_set_config_path(cmd_parms* cmd, void* cfg,
   return NULL;
 }
 
-/* Handler for the "WorkerBindingConfigPath" directive */
+/* Handler for the "AuthoringBindingConfigPath" directive */
 static const char* authoringbinding_set_config_path(cmd_parms* cmd, void* cfg,
                                                     const char* arg) {
   // Check if we have a loaded config already.
@@ -378,7 +378,7 @@ static const char* authoringbinding_set_config_path(cmd_parms* cmd, void* cfg,
 static const command_rec workerbinding_directives[] = {
     AP_INIT_TAKE1("WorkerBindingConfigPath", workerbinding_set_config_path,
                   NULL, RSRC_CONF, "The path to the workerbinding config"),
-    AP_INIT_TAKE1("AuthoringBindingConfigPath", workerbinding_set_config_path,
+    AP_INIT_TAKE1("AuthoringBindingConfigPath", authoringbinding_set_config_path,
                   NULL, RSRC_CONF, "The path to the authoringbinding config"),
     {NULL}};
 
