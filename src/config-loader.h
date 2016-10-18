@@ -11,15 +11,12 @@
         Returns a bindings_setup struct. Only the successfully loaded binding
    configs
         are added to the return config.
-
-        If no fallback host is declared, use the first declared host as
-   fallback.
 */
 binding_rows parse_csv_config(const char* path);
 
 /*
         Returns a list of workers where the bindings configuration has with_kind
-                set for kind.
+        set for kind.
 
         The slices in the return struct must be freed after use.
 */

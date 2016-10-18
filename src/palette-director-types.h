@@ -22,10 +22,11 @@ static const char* PALETTE_DIRECTOR_STATUS_HANDLER = "palette-director-status";
 // The binding kind 'enum' type
 typedef int binding_kind_t;
 
-typedef struct binding_row {
-  // For identity checks
-  size_t row_id;
+// The possible values for the binding_kind_t
+enum { kBINDING_FORBID = -1, kBINDING_ALLOW = 0, kBINDING_PREFER = 1 };
 
+// Maps a sitename + worker_host pair to a binding kind
+typedef struct binding_row {
   // We bind this site
   const char* site_name;
 
@@ -37,8 +38,6 @@ typedef struct binding_row {
 
 } binding_row;
 
-// The possible values for the 'binding' kind column in the config
-enum { kBINDING_FORBID = -1, kBINDING_ALLOW = 0, kBINDING_PREFER = 1 };
 
 // FWD-declare the proxy worker struct
 typedef struct proxy_worker proxy_worker;
