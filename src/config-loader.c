@@ -53,6 +53,7 @@ static char* load_file_into_memory(FILE* f, size_t* out_size) {
   if (errno != 0) {
     ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
                  "File load error: '%s'", strerror(errno));
+    free(string);
     return NULL;
   }
 
@@ -119,6 +120,7 @@ void on_csv_cell(void* s, size_t i, void* p) {
 
   // Skip the first line and dont even try to process it
   if (state->line_count == 0) {
+    free(tmp);
     return;
   }
 
