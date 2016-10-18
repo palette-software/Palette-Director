@@ -14,6 +14,9 @@ static int status_page_http_handler(request_rec* r);
 
 module AP_MODULE_DECLARE_DATA lbmethod_bybusyness_module;
 
+// Since we want to be a drop-in replacement for the existing load balancer
+// used in tableau (lbmethod_bybusyness), we have to use the exact same momdule
+// name
 static const char* PALETTE_DIRECTOR_MODULE_NAME = "lbmethod_bybusyness_module";
 
 /////////////////////////////////////////////////////////////////////////////
@@ -53,6 +56,10 @@ static const char* get_site_name(const request_rec* r,
 
 /////////////////////////////////////////////////////////////////////////////
 
+// The bindings that will be loaded from the configuration file (since
+// these are written only on startup from a single thread, and after apache
+// boot we are only reading from them, these should be safe for access
+// from multiple threads)
 static binding_rows workerbinding_configuration = {0, 0};
 static binding_rows authoringbinding_configuration = {0, 0};
 static binding_rows backgrounderbinding_configuration = {0, 0};
@@ -64,6 +71,8 @@ static int (*ap_proxy_retry_worker_fn)(const char* proxy_function,
                                        proxy_worker* worker,
                                        server_rec* s) = NULL;
 
+static int uri_matches(const request_rec* r, const char* pattern);
+
 /*
  * Helper function that searches tries a list of workers and returns a candidate
  * if there is one available.
@@ -71,7 +80,6 @@ static int (*ap_proxy_retry_worker_fn)(const char* proxy_function,
 static proxy_worker* find_best_bybusyness_from_list(
     request_rec* r, proxy_worker_slice workers_matched) {
   size_t i, workers_matched_count = workers_matched.count;
-  proxy_worker** worker;
   proxy_worker* mycandidate = NULL;
   int cur_lbset = 0;
   int max_lbset = 0;
@@ -84,7 +92,7 @@ static proxy_worker* find_best_bybusyness_from_list(
   do {
     checking_standby = checked_standby = 0;
     while (!mycandidate && !checked_standby) {
-      worker = workers_matched.entries;
+      proxy_worker** worker = workers_matched.entries;
       for (i = 0; i < workers_matched_count; i++, worker++) {
         // ORIGINAL LB_BYBUSYNESS METHOD
         // =============================
@@ -206,6 +214,7 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
 
   // The output
   proxy_worker* candidate = NULL;
+  // we have two priority rounds for routing (prefer and allow)
   proxy_worker_slice workers_by_prio[2];
   binding_rows* selected_binding_configuration = NULL;
 
@@ -218,14 +227,15 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
     }
   }
 
-  ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
-               APLOGNO(01211) "proxy: Entering bybusyness for BALANCER (%s)",
-               balancer->s->name);
+  ap_log_error(
+      APLOG_MARK, APLOG_DEBUG, 0, r->server,
+      APLOGNO(01211) "proxy: Entering Palette Director for BALANCER (%s)",
+      balancer->s->name);
 
   // get the site name
   site_name = get_site_name(r, &workerbinding_configuration);
   if (site_name == NULL) {
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, r->server,
+    ap_log_error(APLOG_MARK, APLOG_INFO, 0, r->server,
                  "Cannot find site name for uri: '%s'  -- with args '%s' ",
                  r->unparsed_uri, r->args);
 
@@ -246,10 +256,9 @@ static proxy_worker* find_best_bybusyness(proxy_balancer* balancer,
     selected_binding_configuration = &workerbinding_configuration;
   }
 
-  // Filter the workers list down
   //////////////////////////////////////////////////////////////
 
-  // filter the workers list down
+  // Filter the workers list down
   workers_by_prio[0] =
       get_handling_workers_for(*selected_binding_configuration,
                                workers_available, site_name, kBINDING_PREFER);
@@ -338,78 +347,51 @@ static int status_page_http_handler(request_rec* r) {
 // APACHE CONFIG FILE
 // ==================
 
-/* Handler for the "WorkerBindingConfigPath" directive */
-static const char* workerbinding_set_config_path(cmd_parms* cmd, void* cfg,
-                                                 const char* arg) {
-  // Check if we have a loaded config already.
-  if (workerbinding_configuration.count == 0) {
-    // site_bindings_setup = read_site_config_from(arg);
-    workerbinding_configuration = parse_csv_config(arg);
-    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,
-                 "Loaded %lu worker bindings from '%s'",
-                 workerbinding_configuration.count, arg);
-  } else {
-    // if yes, log the fact that we tried to add to the config
-    ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
-                 "Duplicate worker bindings config files: config already "
-                 "loaded at the  WorkerBindingConfigPath '%s'  directive",
-                 arg);
-  }
-  return NULL;
+// Set up the config readers / parsers
+// TODO: use a macro+shared function instead of pure macro
+
+#define BINDING_CONFIG_LOADER(key, name)                                       \
+  \
+static const char* key##binding_set_config_path(cmd_parms* cmd, void* cfg,     \
+                                                const char* arg) \
+{          \
+    if (key##binding_configuration.count == 0) {                               \
+      key##binding_configuration = parse_csv_config(arg);                      \
+      ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,                \
+                   "Loaded %lu " name " from '%s'",                            \
+                   key##binding_configuration.count, arg);                     \
+    } else {                                                                   \
+      ap_log_error(                                                            \
+          APLOG_MARK, APLOG_ERR, 0, ap_server_conf,                            \
+          "Bindings config already loaded for " name " from file '%s'.", arg); \
+    }                                                                          \
+    return NULL;                                                               \
+  \
 }
 
-/* Handler for the "WorkerBindingConfigPath" directive */
-static const char* authoringbinding_set_config_path(cmd_parms* cmd, void* cfg,
-                                                    const char* arg) {
-  // Check if we have a loaded config already.
-  if (authoringbinding_configuration.count == 0) {
-    // site_bindings_setup = read_site_config_from(arg);
-    authoringbinding_configuration = parse_csv_config(arg);
-    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,
-                 "Loaded %lu authoring bindings from '%s'",
-                 authoringbinding_configuration.count, arg);
-  } else {
-    // if yes, log the fact that we tried to add to the config
-    ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
-                 "Duplicate authoring bindings config files: config already "
-                 "loaded at the  AuthoringBindingConfigPath '%s'  directive",
-                 arg);
-  }
-  return NULL;
-}
+BINDING_CONFIG_LOADER(worker, "worker bindings")
+BINDING_CONFIG_LOADER(authoring, "authoring bindings")
+BINDING_CONFIG_LOADER(backgrounder, "backgrounder bindings")
 
-/* Handler for the "WorkerBindingConfigPath" directive */
-static const char* backgrounderbinding_set_config_path(cmd_parms* cmd,
-                                                       void* cfg,
-                                                       const char* arg) {
-  // Check if we have a loaded config already.
-  if (backgrounderbinding_configuration.count == 0) {
-    // site_bindings_setup = read_site_config_from(arg);
-    backgrounderbinding_configuration = parse_csv_config(arg);
-    ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, ap_server_conf,
-                 "Loaded %lu backgrounder bindings from '%s'",
-                 backgrounderbinding_configuration.count, arg);
-  } else {
-    // if yes, log the fact that we tried to add to the config
-    ap_log_error(APLOG_MARK, APLOG_ERR, 0, ap_server_conf,
-                 "Duplicate backgrounder bindings config files: config already "
-                 "loaded at the BackgrounderBindingConfigPath '%s'  directive",
-                 arg);
-  }
-  return NULL;
-}
+#undef BINDING_CONFIG_LOADER
+
+// Declare the config file directives
+
+#define BINDING_CONFIG_DIRECTIVE(key, directive_name, description)             \
+  AP_INIT_TAKE1(directive_name, key##binding_set_config_path, NULL, RSRC_CONF, \
+                description)
 
 // Apache config directives.
 static const command_rec workerbinding_directives[] = {
-    AP_INIT_TAKE1("WorkerBindingConfigPath", workerbinding_set_config_path,
-                  NULL, RSRC_CONF, "The path to the workerbinding config"),
-    AP_INIT_TAKE1("AuthoringBindingConfigPath",
-                  authoringbinding_set_config_path, NULL, RSRC_CONF,
-                  "The path to the authoringbinding config"),
-    AP_INIT_TAKE1("BackgrounderBindingConfigPath",
-                  backgrounderbinding_set_config_path, NULL, RSRC_CONF,
-                  "The path to the background bindings config"),
+    BINDING_CONFIG_DIRECTIVE(worker, "WorkerBindingConfigPath",
+                             "The path to the workerbinding config"),
+    BINDING_CONFIG_DIRECTIVE(authoring, "AuthoringBindingConfigPath",
+                             "The path to the authoring binding config"),
+    BINDING_CONFIG_DIRECTIVE(backgrounder, "BackgrounderBindingConfigPath",
+                             "The path to the backgrounder config"),
     {NULL}};
+
+#undef BINDING_CONFIG_DIRECTIVE
 
 // MODULE DECLARATION
 // ==================

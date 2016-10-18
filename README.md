@@ -134,3 +134,23 @@ This tries to insert the worker binding statuses after the current
 cluster status table.
 
 
+# Development notes
+
+## Building
+
+You'll need a 32 bit Visual Studio 2010 to compile modules for the apache supplied with Tableau
+
+* Put the (32 bit) apache installation anywhere on your machine
+* set the `APACHE_INCLUDE_DIR` CMake cache variable to the include directory of that installation
+* set the `APACHE_LIB_DIR` CMake cache variable to the lib directory of that installation
+
+* The CPack installer needs attention to make it work
+
+## Code format
+
+All code in the repository is formatted by clang-format with the settings checked in 
+as `.clang-format` so running 
+
+```clang-format -i src/*.{c,h}``` 
+
+should format all your code for the coding standards of the project.

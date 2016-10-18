@@ -12,31 +12,10 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
+// Ignore the hostname resolution until we need to deal with it
+// (a DNS query inside the load balancer routing will slow down
+// all new, unrouted queries)
 enum { RESOLVE_HOSTNAMES = FALSE };
-
-// Note: This function returns a pointer to a substring of the original string.
-// If the given string was allocated dynamically, the caller must not overwrite
-// that pointer with the returned value, since the original pointer must be
-// deallocated using the same allocator with which it was allocated.  The return
-// value must NOT be deallocated using free() etc.
-static char* trimwhitespace(char* str) {
-  char* end;
-
-  // Trim leading space
-  while (isspace(*str)) str++;
-
-  if (*str == 0)  // All spaces?
-    return str;
-
-  // Trim trailing space
-  end = str + strlen(str) - 1;
-  while (end > str && isspace(*end)) end--;
-
-  // Write new null terminator
-  *(end + 1) = 0;
-
-  return str;
-}
 
 // Loads a file into memory and returns a pointer
 static char* load_file_into_memory(FILE* f, size_t* out_size) {
@@ -64,7 +43,7 @@ static char* load_file_into_memory(FILE* f, size_t* out_size) {
 }
 
 // Duplicates a string by duping num_chars chars (and a 0) only
-const char* strndup(const char* str, size_t num_chars) {
+static const char* strndup(const char* str, size_t num_chars) {
   // clip the length
   const size_t copied_chars = min(num_chars, strlen(str));
   char* o = (char*)malloc(copied_chars + 1);
@@ -105,14 +84,12 @@ typedef struct config_loader_state {
 
 } config_loader_state;
 
-static int put_comma = 0;
-
-// Handler on fields
-void on_csv_cell(void* s, size_t i, void* p) {
+// Handler for each cell in a CSV row
+static void on_csv_cell(void* s, size_t i, void* p) {
   // get the state
   config_loader_state* state = (config_loader_state*)p;
   int state_idx = state->state;
-  // clone the string, beacause all steps require a null-terminated string
+  // clone the string, because all steps require a null-terminated string
   char* tmp = (char*)strndup((char*)s, i);
 
   // Skip the first line and dont even try to process it
@@ -158,7 +135,9 @@ void on_csv_cell(void* s, size_t i, void* p) {
   state->state = state_idx;
 }
 
-void on_csv_row_end(int c, void* p) {
+// handler for each row in the CSV file (called after each cell in that row
+// has been added.
+static void on_csv_row_end(int c, void* p) {
   config_loader_state* state = (config_loader_state*)p;
 
   // Add the row to the state if its not the first one
@@ -257,6 +236,10 @@ binding_rows parse_csv_config(const char* path) {
 
 ////////////////////////////////////////////////////////////////////////////
 
+// Returns the binding kind for a sitename / host pair from the list
+// of bindings provided
+// TODO: speed this up by storing and comparing a hash (but careful with
+// upper/lower case)
 static binding_kind_t binding_kind_for(const binding_rows bindings,
                                        const char* site_name,
                                        const char* worker_host) {
@@ -265,7 +248,7 @@ static binding_kind_t binding_kind_for(const binding_rows bindings,
   if (site_name == NULL) return kBINDING_ALLOW;
 
   for (i = 0; i < len; ++i) {
-    binding_row b = bindings.entries[i];
+    const binding_row b = bindings.entries[i];
 
     // if the site name and worker host match, return the kind
     if (strcasecmp(b.site_name, site_name) == 0 &&
@@ -277,6 +260,9 @@ static binding_kind_t binding_kind_for(const binding_rows bindings,
   return kBINDING_ALLOW;
 }
 
+// Filtering workers
+// -----------------
+
 typedef struct worker_hostname_filter_state {
   const char* site_name;
   binding_kind_t kind;
@@ -285,10 +271,10 @@ typedef struct worker_hostname_filter_state {
 } worker_hostname_filter_state;
 
 static int worker_by_hostname_filter_fn(const proxy_worker** w, void* state) {
-  worker_hostname_filter_state* s = (worker_hostname_filter_state*)state;
-  binding_kind_t b =
-      binding_kind_for(s->bindings_in, s->site_name, (*w)->s->hostname);
-  return b == s->kind;
+  const worker_hostname_filter_state s = *(worker_hostname_filter_state*)state;
+  const binding_kind_t b =
+      binding_kind_for(s.bindings_in, s.site_name, (*w)->s->hostname);
+  return b == s.kind;
 }
 
 proxy_worker_slice get_handling_workers_for(const binding_rows bindings_in,
