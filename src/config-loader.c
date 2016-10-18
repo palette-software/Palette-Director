@@ -57,8 +57,6 @@ static char* load_file_into_memory(FILE* f, size_t* out_size) {
     return NULL;
   }
 
-  fclose(f);
-
   *out_size = fsize;
   string[fsize] = 0;
   return string;
