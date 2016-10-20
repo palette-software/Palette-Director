@@ -1,0 +1,6 @@
+site,host,binding
+QA,worker1,forbid
+Marketing,worker2,forbid
+Marketing,worker1,prefer
+QA,worker3,prefer
+Marketing,worker3,prefer
