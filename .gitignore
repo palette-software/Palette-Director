@@ -13,6 +13,7 @@ cmake_install.cmake
 Debug/
 Win32/
 RelWithDebInfo/
+build/
 
 *.swp
 
