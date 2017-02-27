@@ -120,7 +120,7 @@ Different formatted versions are available:
 ### Inserting the status page into the tableau Cluster Status page:
 
 
-A quick (and very dirty) hack to insert the Status Page into the is by editing the
+A workaround to insert the Status Page into the is by editing the
 `vizPortalLibMin.js` javascript file and adding the following snippet
 to the end:
 
