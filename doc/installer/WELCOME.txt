@@ -1,3 +1,0 @@
-Welcome message goes here....
-
-edit doc/installer/WELCOME.txt

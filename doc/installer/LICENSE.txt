@@ -1,3 +1,0 @@
-License goes here....
-
-edit doc/installer/LICENSE.txt

@@ -1,3 +1,0 @@
-Readme goes here....
-
-edit doc/installer/README.txt
