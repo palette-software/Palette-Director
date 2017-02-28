@@ -29,7 +29,7 @@ module.
 
 ## Binding config file
 
-The format of the configuration file is identical to the [Background Worker Binding Configuration](https://github.com/palette-software/palette-director/wiki/Worker-Binding-Configuration), except for one important detail:
+The format of the configuration file is identical to the [Background Worker Binding Configuration](https://github.com/brilliant-data/Palette-Director/blob/master/doc/installer/WORKER_BINDING_INSTALL.md), except for one important detail:
 
 The host names must be the same as they are for the ProxyPass directives in the apache configuration file (`httpd.conf`). This means that if a host is declared by name (like TABLEAU-PRIMARY1 or tableau-primary.local) then the exact same name must be used in the configuration file. If `httpd.conf` has an IP for a worker, that IP must be used.
 
